@@ -1,6 +1,9 @@
 #include <Windows.h>
-#include "resource.h"
 #include <stdio.h>
+#include "resource.h"
+#include "config.h"
+#include "version.h"
+#include "traynotification.h"
 
 // Window Menu ID's
 #define ID_FILE_EXIT 9001
@@ -17,9 +20,6 @@
 #define ID_OPEN_IN_BROWSER 1004
 #define ID_START_STOP_BUTTON 1005
 
-// Tray icon ID.
-#define ID_TRAY_APP_ICON 5000
-
 // Tray Menu options ID.
 #define ID_TRAY_EXIT_CONTEXT_MENU_ITEM  3000
 #define ID_TRAY_START_CONTEXT_MENU_ITEM 3001
@@ -28,8 +28,13 @@
 #define ID_TRAY_RESTORE_CONTEXT_MENU_ITEM 3004
 #define ID_TRAY_START_STOP_CONTEXT_MENU_ITEM 3005
 
-// Private windows message.
-#define WM_TRAYICON ( WM_USER + 1 )
+// setStartupShortcut options
+#define CONFIG_YES               '0'
+#define CONFIG_NO                '1'
+
+// UINT that defines enabled/disabled state tray buttons
+UINT TRAY_ENABLED    = MF_ENABLED;
+UINT TRAY_DISABLED   = MF_DISABLED | MF_GRAYED;
 
 // UINT that will hold a new defined message.
 UINT WM_TASKBARCREATED = 0;
@@ -57,9 +62,6 @@ HINSTANCE hINSTANCE;
 // Tray icon.
 HBITMAP bitmap;
 
-// Tray notify structure.
-NOTIFYICONDATA g_notifyIconData;
-
 // Structures to specify how will cmd and both python process run.
 SHELLEXECUTEINFO cmdCommandsInfo;
 SHELLEXECUTEINFO pythonShellExecuteInfo_1;
@@ -79,184 +81,123 @@ HANDLE processHandle2;
 HANDLE winshortcutHandle;
 
 // Component messages.
-UINT startupCheckState;
-UINT autoMinimizeCheckState;
-UINT autoStartServer;
+UINT RUN_AT_STARTUP_CHECK_STATE;
+UINT AUTO_MINIMIZE_CHECK_STATE;
+UINT AUTO_START_SERVER_CHECK_STATE;
 
+// Control flags.
 bool SERVERISRUNNING;
 bool CHANGEDSTATE;
-bool runServerOnCreationMessage;
 
-char ReadBuffer[4];
-TCHAR versionFinal[MAX_PATH] = {};
+// winshortcut script return value.
 DWORD winshortcutReturn; 
 
-// Function that creates the gui config file.
-int setConfigFile(char * value)
+// Program class name.
+TCHAR className[] = L"KA Lite Class";
+
+// Configuration options section.
+char runAtStartupOption    [10];
+char autoMinimizeOption    [10];
+char autoStartOption       [10];
+
+
+
+/*************************************************************************************
+*                                                                                    *
+*	Functions declaration.                                                           *
+*                                                                                    *
+**************************************************************************************/
+void loadConfigurations();
+void setStartupShortcut(char CONFIG_OPTION);
+void prepareRunningProcessesStructures();
+void startServerCommand();
+void stopServerCommand();
+void refreshServerStateTrayMenuText(LPCWSTR serverAction, LPCWSTR openBrowser, LPCWSTR restoreWindow, LPCWSTR exit);
+void enabledTrayMenuButtons(UINT serverAction, UINT openBrowser, UINT restoreWindow, UINT exit);
+void enabledMainWindowButtons(bool serverAction, bool openBrowser);
+void CheckMenus();
+LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+HWND GetRunningWindow();
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow);
+
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This section is to load configurations.                                          *
+*                                                                                    *
+**************************************************************************************/
+void loadConfigurations()
 {
-	HANDLE hFile;
-	char * DataBuffer = value;
-	DWORD bytesToWrite = (DWORD) strlen(DataBuffer);
-	DWORD bytesWritten = 0;
-	BOOL errorFlag = FALSE;
-
-	hFile = CreateFile(L"CONFIG.dat",GENERIC_WRITE,0,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
-
-	if(hFile == INVALID_HANDLE_VALUE)
+	if(getConfigurationValue("RUN_AT_STARTUP", runAtStartupOption, 10) == 0 )
 	{
-		MessageBox(NULL, L"Failed to create config file", L"Error", MB_OK | MB_ICONERROR);
-		CloseHandle(hFile);
-		return 1;
-	} else { 
-
-		errorFlag = WriteFile(hFile, DataBuffer, bytesToWrite, &bytesWritten, NULL);
-
-		if(FALSE == errorFlag)
+		if(compareKeys(runAtStartupOption, "TRUE"))
 		{
-			MessageBox(NULL, L"Failed to write to config file", L"Error", MB_OK | MB_ICONERROR);
-			CloseHandle(hFile);
-			return 1;
+			setStartupShortcut(CONFIG_YES);
+			RUN_AT_STARTUP_CHECK_STATE = SW_SHOWNA;
 		}
-
-		CloseHandle(hFile);
-		return 0;
-	}
-	CloseHandle(hFile);
-	return 1;
-}
-
-// Function to check and read config file.
-int readConfigFile()
-{
-	HANDLE hFile;
-	DWORD bytesRead = 0;
-
-	hFile = CreateFile(L"CONFIG.dat", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	if(hFile == INVALID_HANDLE_VALUE)
-	{
-		// Fails to open the file but continues and create one.
-		CloseHandle(hFile);
-		return 1;
 	}
 
-	if(ReadFile(hFile, ReadBuffer, 3, &bytesRead, NULL) == FALSE)
+	if(getConfigurationValue("AUTO_MINIMIZE", autoMinimizeOption, 10) == 0)
 	{
-		MessageBox(NULL, L"Failed to read the config file", L"Error", MB_OK | MB_ICONERROR);
-		CloseHandle(hFile);
-		return 1;
-	}
-
-	if( bytesRead > 0 && bytesRead <= 3)
-	{
-		ReadBuffer[3] = '\0';
-		if(ReadBuffer[0] == '0')
+		if(compareKeys(autoMinimizeOption, "TRUE"))
 		{
-			//Success
-			CloseHandle(hFile);
-			return 0;
+			AUTO_MINIMIZE_CHECK_STATE = SW_SHOWNA;
 		}
-		CloseHandle(hFile);
-		return 1;
-	}
-	else if( bytesRead == 0)
-	{
-		MessageBox(NULL, L"No data read from file", L"Error", MB_OK | MB_ICONERROR);
-		CloseHandle(hFile);
-		return 1;
-	}
-	else
-	{
-		MessageBox(NULL, L"Unexpected value", L"Error", MB_OK | MB_ICONERROR);
-		CloseHandle(hFile);
-		return 1;
-	}
-	CloseHandle(hFile);
-	return 1;
-}
-
-int getVersionFromFile()
-{
-	HANDLE hFile;
-	DWORD bytesRead = 0;
-	char versionBuffer[30];
-
-	hFile = CreateFile(L"ka-lite\\kalite\\version.py", GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-	if(hFile == INVALID_HANDLE_VALUE)
-	{
-		// Fails to open the file but continues and create one.
-		CloseHandle(hFile);
-		return 1;
 	}
 
-	if(ReadFile(hFile, versionBuffer, 29, &bytesRead, NULL) == FALSE)
+	if(getConfigurationValue("AUTO_START_SERVER", autoStartOption, 10) == 0)
 	{
-		MessageBox(NULL, L"Failed to read the config file", L"Error", MB_OK | MB_ICONERROR);
-		CloseHandle(hFile);
-		return 1;
-	}
-
-	if( bytesRead > 0 && bytesRead <= 29)
-	{
-		versionBuffer[29] = '\0';
-		int i = 0;
-		for(i=0; i<29; i++)
+		if(compareKeys(autoStartOption, "TRUE"))
 		{
-			if(versionBuffer[i] == '\"')
-			{
-				break;
-			}
+			AUTO_START_SERVER_CHECK_STATE = SW_SHOWNA;
+			startServerCommand();
 		}
-		i++;
-		int j = 0;
-		for(j=0;j<29; j++)
-		{
-			if(versionBuffer[i] == '\"')
-			{
-				break;
-			}
-			versionFinal[j] = versionBuffer[i];
-			i++;
-		}
-		versionFinal[j] = '\0';
-
-		CloseHandle(hFile);
-		return 0;
-	}
-	else if( bytesRead == 0)
-	{
-		MessageBox(NULL, L"No data read from file", L"Error", MB_OK | MB_ICONERROR);
-		CloseHandle(hFile);
-		return 1;
-	}
-	else
-	{
-		MessageBox(NULL, L"Unexpected value", L"Error", MB_OK | MB_ICONERROR);
-		CloseHandle(hFile);
-		return 1;
-	}
-	CloseHandle(hFile);
-	return 1;
-}
-
-void refreshConfigBuffer()
-{
-	if ( ReadBuffer[0] == '0' )
-	{
-		startupCheckState = SW_SHOWNA;
-	}
-	if( ReadBuffer[1] == '0' )
-	{
-		autoMinimizeCheckState = SW_SHOWNA;
-	}		
-	if( ReadBuffer[2] == '0' )
-	{
-		autoStartServer = SW_SHOWNA;
 	}
 }
 
-void prepareShellInfoStructures()
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This function is used to call winshortcut script.                                *
+*                                                                                    *
+**************************************************************************************/
+void setStartupShortcut(char CONFIG_OPTION)
+{
+	winshortcutInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+	winshortcutInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
+	winshortcutInfo.hwnd = NULL;
+	winshortcutInfo.lpVerb = L"open";
+	winshortcutInfo.lpFile = L"winshortcut.vbs" ;
+	if(CONFIG_OPTION == CONFIG_YES)
+	{
+		winshortcutInfo.lpParameters = L"0";
+	}
+	else if(CONFIG_OPTION == CONFIG_NO)
+	{
+		winshortcutInfo.lpParameters = L"1";
+	}
+	winshortcutInfo.lpDirectory = NULL;
+	winshortcutInfo.nShow = SW_HIDE;
+	winshortcutInfo.hInstApp = NULL;
+
+	if(!ShellExecuteEx(&winshortcutInfo))
+	{
+		MessageBox(NULL, L"Failed to create startup shortcut!", L"Error", MB_OK | MB_ICONERROR);
+	}
+}
+
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This prepares the structures needed to start the server and to get info about    *
+*	the running processes.                                                           *
+*                                                                                    *
+**************************************************************************************/
+void prepareRunningProcessesStructures()
 {
 	cmdCommandsInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 	cmdCommandsInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -289,32 +230,16 @@ void prepareShellInfoStructures()
 	pythonShellExecuteInfo_2.hInstApp = NULL;
 }
 
-void setStartupShortcut(int v)
-{
-	winshortcutInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-	winshortcutInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-	winshortcutInfo.hwnd = NULL;
-	winshortcutInfo.lpVerb = L"open";
-	winshortcutInfo.lpFile = L"winshortcut.vbs" ;
-	if(v == 0){
-		winshortcutInfo.lpParameters = L"0";
-	} else if (v == 1)
-	{
-		winshortcutInfo.lpParameters = L"1";
-	}
-	winshortcutInfo.lpDirectory = NULL;
-	winshortcutInfo.nShow = SW_HIDE;
-	winshortcutInfo.hInstApp = NULL;
 
-	if(!ShellExecuteEx(&winshortcutInfo))
-	{
-		MessageBox(NULL, L"Failed to create startup shortcut!", L"Error", MB_OK | MB_ICONERROR);
-	}
-}
 
-// Function to start the server.
+/*************************************************************************************
+*                                                                                    *
+*	This function starts the server.                                                 *
+*                                                                                    *
+**************************************************************************************/
 void startServerCommand()
 {
+	prepareRunningProcessesStructures();
 	if(ShellExecuteEx(&cmdCommandsInfo))
 	{
 		cmdProcess = GetProcessId(cmdCommandsInfo.hProcess);
@@ -325,28 +250,31 @@ void startServerCommand()
 			{
 				processID2 = GetProcessId(pythonShellExecuteInfo_2.hProcess);
 				SERVERISRUNNING = TRUE;
-				if(!runServerOnCreationMessage)
-				{
-					MessageBox(hwnd,L"The server should now be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"", L"Server started", MB_OK | MB_ICONINFORMATION);
-				}				
+				sendTrayMessage(hwnd, "KA Lite is running", "The server should now be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"");
 			}
 			else
 			{
-				MessageBox(hwnd,L"Could not start the server! Step3", L"Starting error", MB_OK | MB_ICONERROR);
+				MessageBox(hwnd,L"Could not start the server! Error3", L"Starting error", MB_OK | MB_ICONERROR);
 			}
 		}
 		else
 		{
-			MessageBox(hwnd,L"Could not start the server! Step2", L"Starting error", MB_OK | MB_ICONERROR);
+			MessageBox(hwnd,L"Could not start the server! Error2", L"Starting error", MB_OK | MB_ICONERROR);
 		}		
 	}
 	else
 	{
-		MessageBox(hwnd,L"Could not start the server! Step1", L"Starting error", MB_OK | MB_ICONERROR);		
+		MessageBox(hwnd,L"Could not start the server! Error1", L"Starting error", MB_OK | MB_ICONERROR);		
 	}			
 }
 
-// Function to stop the server.
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This function stops the server and kill any python process started by KA Lite.   *
+*                                                                                    *
+**************************************************************************************/
 void stopServerCommand()
 {
 	processHandle1 = OpenProcess(PROCESS_TERMINATE, false,  processID1);
@@ -361,171 +289,160 @@ void stopServerCommand()
 	SERVERISRUNNING = FALSE;
 }
 
-// Function to check the state of menu's.
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This function sets the tray menu options text.                                   *
+*                                                                                    *
+**************************************************************************************/
+void refreshServerStateTrayMenuText(LPCWSTR serverAction, LPCWSTR openBrowser, LPCWSTR restoreWindow, LPCWSTR exit)
+{
+	AppendMenu(hMenu, MF_STRING, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, serverAction);											
+	AppendMenu(hMenu, MF_STRING, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, openBrowser);
+	AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTORE_CONTEXT_MENU_ITEM, restoreWindow);
+	AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, exit);
+}
+
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This function refresh the text over start/stop button.                           *
+*                                                                                    *
+**************************************************************************************/
+void refreshMainWindowStartStopButtonText(LPCWSTR serverAction)
+{
+	if(CHANGEDSTATE && IsWindowVisible(hwnd))
+	{
+		SetDlgItemTextW(hwnd, ID_START_STOP_BUTTON, serverAction);
+		CHANGEDSTATE = false;
+	}
+}
+
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This function enables or disables the tray buttons menu.                         *
+*   Options: TRAY_ENABLED/TRAY_DISABLED                                              *
+*                                                                                    *
+**************************************************************************************/
+void enabledTrayMenuButtons(UINT serverAction, UINT openBrowser, UINT restoreWindow, UINT exit)
+{
+	EnableMenuItem(hMenu, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, serverAction);
+	EnableMenuItem(hMenu, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, openBrowser);
+	EnableMenuItem(hMenu, ID_TRAY_RESTORE_CONTEXT_MENU_ITEM, restoreWindow);
+	EnableMenuItem(hMenu, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, exit);
+}
+
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This function enables or disables the main window buttons.                       *
+*                                                                                    *
+**************************************************************************************/
+void enabledMainWindowButtons(bool serverAction, bool openBrowser)
+{
+	EnableWindow(GetDlgItem(hwnd,ID_START_STOP_BUTTON), serverAction);
+	EnableWindow(GetDlgItem(hwnd,ID_OPEN_IN_BROWSER), openBrowser);
+}
+
+
+
+/*************************************************************************************
+*                                                                                    *
+*	This function is used to check and control the text and availability of all the  *
+*   options in each cicle.                                                           *
+*                                                                                    *
+**************************************************************************************/
 void CheckMenus()
 {
 	if(SERVERISRUNNING)
 	{
-		EnableMenuItem(hMenu, ID_TRAY_START_CONTEXT_MENU_ITEM, MF_DISABLED | MF_GRAYED);
-		EnableMenuItem(hMenu, ID_TRAY_STOP_CONTEXT_MENU_ITEM, MF_ENABLED);
-		EnableMenuItem(hMenu, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, MF_ENABLED);
-		EnableMenuItem(hMenu, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, MF_ENABLED);
-		EnableWindow(GetDlgItem(hwnd,ID_START_BUTTON), FALSE);
-		EnableWindow(GetDlgItem(hwnd,ID_STOP_BUTTON), TRUE);
-		EnableWindow(GetDlgItem(hwnd,ID_MINIMIZE_BUTTON), FALSE);
-		EnableWindow(GetDlgItem(hwnd,ID_OPEN_IN_BROWSER), TRUE);
-		EnableWindow(GetDlgItem(hwnd,ID_FILE_EXIT), FALSE);
+		enabledTrayMenuButtons(TRAY_ENABLED, TRAY_ENABLED, TRAY_ENABLED, TRAY_ENABLED);
+		enabledMainWindowButtons(TRUE, TRUE);
 		hMenu = CreatePopupMenu();
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, L"Stop server");											
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, L"Open KA Lite");
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTORE_CONTEXT_MENU_ITEM, L"Restore window");
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, L"Exit KA Lite");
-		if(CHANGEDSTATE && IsWindowVisible(hwnd))
-		{
-			SetDlgItemTextW(hwnd, ID_START_STOP_BUTTON, L"Stop server");
-			CHANGEDSTATE = false;
-		}
+		refreshServerStateTrayMenuText(L"Stop server", L"Open KA Lite", L"Restore window", L"Exit KA Lite");
+		refreshMainWindowStartStopButtonText(L"Stop server");	
 	}
 	else
 	{
-		EnableMenuItem(hMenu, ID_TRAY_START_CONTEXT_MENU_ITEM, MF_ENABLED);
-		EnableMenuItem(hMenu, ID_TRAY_STOP_CONTEXT_MENU_ITEM, MF_DISABLED | MF_GRAYED);
-		EnableMenuItem(hMenu, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, MF_ENABLED);
-		EnableMenuItem(hMenu, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, MF_DISABLED | MF_GRAYED);
-		EnableWindow(GetDlgItem(hwnd,ID_START_BUTTON), TRUE);
-		EnableWindow(GetDlgItem(hwnd,ID_STOP_BUTTON), FALSE);
-		EnableWindow(GetDlgItem(hwnd,ID_MINIMIZE_BUTTON), TRUE);
-		EnableWindow(GetDlgItem(hwnd,ID_OPEN_IN_BROWSER), FALSE);
-		EnableWindow(GetDlgItem(hwnd,ID_FILE_EXIT), TRUE);
+		enabledTrayMenuButtons(TRAY_ENABLED, TRAY_DISABLED, TRAY_ENABLED, TRAY_ENABLED);
+		enabledMainWindowButtons(TRUE, FALSE);
 		hMenu = CreatePopupMenu();
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, L"Start server");											
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, L"Open KA Lite");
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTORE_CONTEXT_MENU_ITEM, L"Restore window");
-		AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, L"Exit KA Lite");
-		if(CHANGEDSTATE && IsWindowVisible(hwnd))
-		{
-			SetDlgItemTextW(hwnd, ID_START_STOP_BUTTON, L"Start server");
-			CHANGEDSTATE = false;
-		}
+		refreshServerStateTrayMenuText(L"Start server", L"Open KA Lite", L"Restore window", L"Exit KA Lite");
+		refreshMainWindowStartStopButtonText(L"Start server");	
 	}
 }
 
-// Functions to minimize and to restore from Tray.
-
-void Minimize()
-{
-	// Add the icon to the system tray
-	Shell_NotifyIcon(NIM_ADD, &g_notifyIconData);
-
-	// and hide the main window
-	ShowWindow(hwnd,SW_HIDE);
-}
-
-void Restore()
-{
-	// Remove the icon from the system tray
-	Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
-
-	// and show the main window
-	ShowWindow(hwnd,SW_SHOW);
-}
 
 
-// Initialize the NOTIFYICONDATA structure
-void InitNotifyIconData()
-{
-	// Allocate memory for the structure.
-	memset(&g_notifyIconData, 0, sizeof(NOTIFYICONDATA));
-	g_notifyIconData.cbSize = sizeof(NOTIFYICONDATA);
-
-	// Bind the NOTIFYICONDATA structure to our global hwnd ( handle to main window ).
-	g_notifyIconData.hWnd = hwnd;
-
-	// Set the NOTIFYICONDATA ID. HWND and uID form a unique identifier for each item in system tray.
-	g_notifyIconData.uID = ID_TRAY_APP_ICON;
-
-	// Set up flags.
-	g_notifyIconData.uFlags = NIF_ICON | // Guarantees that the hIcon member will be a valid icon.
-		                      NIF_MESSAGE | // When someone clicks in the system tray icon, we want a WM_ type message to be sent to our WNDPROC
-		                      NIF_TIP  | NIF_INFO| NIF_SHOWTIP; // Show tooltip.
-
-	// This message must be handled in hwnd's window procedure.
-	g_notifyIconData.uCallbackMessage = WM_TRAYICON;
-
-	// Load the icon as a resource.
-	g_notifyIconData.hIcon = LoadIcon(hINSTANCE,MAKEINTRESOURCE(IDI_ICON1));
-
-	// Set the tooltip text.
-	wcscpy_s(g_notifyIconData.szTip, L"KA Lite");
-
-	// Time to display the tooltip.
-	//g_notifyIconData.uTimeout = 100;
-
-	// Type of tooltip (balloon).
-	g_notifyIconData.dwInfoFlags = NIIF_INFO;
-
-	// Copy text to the structure.
-	lstrcpy(g_notifyIconData.szInfo , L"Right click for KA Lite options!");
-	lstrcpy(g_notifyIconData.szInfoTitle , L"KA Lite");
-}
-
-// The name of the window class.
-LPCWSTR g_szClassName = L"KA Lite Class";
-
-// Function to handle the messages from the "about" dialog.
+/*************************************************************************************
+*                                                                                    *
+*	This function is used to handle the messages that come to "about" dialog.        *
+*                                                                                    *
+**************************************************************************************/
 LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
 	switch(Message)
 	{
-		case WM_INITDIALOG:
-			return TRUE;
-		case WM_COMMAND:
-			switch(wParam)
-			{
-			case IDOK:
-				EndDialog(hwnd, IDOK);
-				break;
-			case IDCANCEL:
-				EndDialog(hwnd, IDCANCEL);
-				break;
-			}
+	case WM_INITDIALOG:
+		return TRUE;
+	case WM_COMMAND:
+		switch(wParam)
+		{
+		case IDOK:
+			EndDialog(hwnd, IDOK);
 			break;
-		default:
-			return FALSE;
+		case IDCANCEL:
+			EndDialog(hwnd, IDCANCEL);
+			break;
+		}
+		break;
+	default:
+		return FALSE;
 	}
 	return TRUE;
 }
 
-// Main window function that processes the messages that come to the window.
+
+
+/*************************************************************************************
+*                                                                                    *
+*	Main window function that processes the messages that come to the main window.   *
+*                                                                                    *
+**************************************************************************************/
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	CheckMenus();
-	
+
 	if( msg==WM_TASKBARCREATED && !IsWindowVisible(hwnd))
 	{
-		Minimize();
+		Minimize(hwnd, "KA Lite", "Right click over the tray icon for more options.");
 		return 0;
 	}
 
 	switch(msg)
 	{
 
-		case WM_PAINT:
+	case WM_PAINT:
 		{
 			HDC hDC, MemDCLogo;
 			PAINTSTRUCT Ps;
 			HBITMAP bmp1;
- 
+
 			hDC = BeginPaint(hwnd, &Ps);
 
-			bmp1 = LoadBitmap(hINSTANCE,MAKEINTRESOURCE(IDB_BITMAP2));
+			bmp1 = LoadBitmap(hINSTANCE, MAKEINTRESOURCE(IDB_BITMAP2));
 
 			if(bmp1 == NULL)
-				MessageBox(hwnd, L"Image not loaded" , L"Image Error", MB_OK | MB_ICONINFORMATION);
+				MessageBox(hwnd, L"Image not loaded", L"Image Error", MB_OK | MB_ICONINFORMATION);
 
 			MemDCLogo = CreateCompatibleDC(hDC);
 			if(MemDCLogo == NULL)
-				MessageBox(hwnd, L"HDC error" , L"HDC Error", MB_OK | MB_ICONINFORMATION);
+				MessageBox(hwnd, L"HDC error", L"HDC Error", MB_OK | MB_ICONINFORMATION);
 
 
 			SelectObject(MemDCLogo, bmp1);
@@ -539,19 +456,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_CREATE:
 		{
 			HICON hIcon, hIconSm;
-			
 			hMenu = CreatePopupMenu();
-			
+
 			if(SERVERISRUNNING)
 			{
 				AppendMenu(hMenu, MF_STRING, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, L"Stop server");
-			} else {
+			} 
+			else 
+			{
 				AppendMenu(hMenu, MF_STRING, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, L"Start server");
-			}						
+			}
+
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, L"Open KA Lite");
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTORE_CONTEXT_MENU_ITEM, L"Restore window");
 			AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, L"Exit KA Lite");				
-			
+
 			hMainMenu = CreateMenu();
 			hFileSubMenu = CreatePopupMenu();
 			AppendMenu(hFileSubMenu, MF_STRING, ID_FILE_EXIT, L"E&xit");
@@ -569,41 +488,53 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			SetMenu(hwnd, hMainMenu);
 
-			hIcon = LoadIcon(hINSTANCE,MAKEINTRESOURCE(IDI_ICON1));
+			hIcon = LoadIcon(hINSTANCE, MAKEINTRESOURCE(IDI_ICON1));
 			if(hIcon)
+			{
 				SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+			}
 			else
+			{
 				MessageBox(hwnd, L"Failed to load the image.", L"Error", MB_OK | MB_ICONERROR);
+			}
 
 			hIconSm = LoadIcon(hINSTANCE,MAKEINTRESOURCE(IDI_ICON1));
 			if(hIcon)
+			{
 				SendMessage(hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+			}
 			else
-				MessageBox(hwnd, L"Failed to load the image.", L"Error", MB_OK | MB_ICONERROR); 
+			{
+				MessageBox(hwnd, L"Failed to load the image.", L"Error", MB_OK | MB_ICONERROR);
+			}
 
-			CreateWindowEx(WS_EX_CLIENTEDGE, L"BUTTON", L"Start", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 83, 120, 30, hwnd, (HMENU) ID_START_STOP_BUTTON,(HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE), NULL);
+			CreateWindowEx(WS_EX_CLIENTEDGE, L"BUTTON", L"Start server", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, 10, 83, 120, 30, hwnd, (HMENU) ID_START_STOP_BUTTON,(HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE), NULL);
 			CreateWindowEx(WS_EX_CLIENTEDGE, L"BUTTON", L"Open KA lite",  WS_TABSTOP |WS_VISIBLE|WS_CHILD | BS_DEFPUSHBUTTON, 140, 83, 120,30, hwnd, (HMENU) ID_OPEN_IN_BROWSER, (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE), NULL);
-			
-			if (startupCheckState == SW_SHOWNA) 
+
+			if (RUN_AT_STARTUP_CHECK_STATE == SW_SHOWNA) 
 			{
 				CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_RUNSTARTUP, MF_CHECKED);
-			} else {
+			}
+			else 
+			{
 				CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_RUNSTARTUP, MF_UNCHECKED);
 			}
 
-			if (autoMinimizeCheckState == SW_SHOWNA)
+			if (AUTO_MINIMIZE_CHECK_STATE == SW_SHOWNA)
 			{
 				CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOMINIMIZE, MF_CHECKED);
-				EnableMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_ENABLED);
-			} else {
+			} 
+			else
+			{
 				CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOMINIMIZE, MF_UNCHECKED);
-				EnableMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_DISABLED | MF_GRAYED);
 			}
 
-			if (autoStartServer == SW_SHOWNA)
+			if (AUTO_START_SERVER_CHECK_STATE == SW_SHOWNA)
 			{
 				CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_CHECKED);
-			} else {
+			} 
+			else
+			{
 				CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_UNCHECKED);
 			}
 
@@ -614,235 +545,255 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch(LOWORD(wParam))
 		{
-			case ID_START_BUTTON:
-				prepareShellInfoStructures();
+		case ID_START_BUTTON:
+			{
 				startServerCommand();
-				break;
-			case ID_STOP_BUTTON:
-				stopServerCommand();
-				break;
-			case ID_START_STOP_BUTTON:
-				if(SERVERISRUNNING)
-				{
-					stopServerCommand();
-					SetDlgItemTextW(hwnd, ID_START_STOP_BUTTON, L"Start server");
-					CHANGEDSTATE = true;
-				} else {
-					prepareShellInfoStructures();
-					startServerCommand();
-					SetDlgItemTextW(hwnd, ID_START_STOP_BUTTON, L"Stop server");
-					CHANGEDSTATE = true;
-				}				
-				break;
-			case ID_MINIMIZE_BUTTON:
-				Minimize();
-				break;
-			case ID_OPEN_IN_BROWSER:
-				if((int)ShellExecute(hwnd,L"open",L"http://127.0.0.1:8008/",NULL,NULL,SW_MAXIMIZE) <= 36)
-				{
-					MessageBox(hwnd,L"Cannot open KA Lite in browser!", L"Opening KA Lite error", MB_OK | MB_ICONINFORMATION);
-				}
-				break;
-			case ID_OPTIONS_RUNSTARTUP:
-				startupCheckState = GetMenuState(hOptionsSubMenu, ID_OPTIONS_RUNSTARTUP, MF_BYCOMMAND);
+			}
+			break;
 
-                if (startupCheckState == SW_SHOWNA) {
+		case ID_STOP_BUTTON:
+			{
+				stopServerCommand();
+			}
+			break;
+
+		case ID_START_STOP_BUTTON:
+			if(SERVERISRUNNING)
+			{
+				stopServerCommand();
+				CHANGEDSTATE = true;
+			} 
+			else 
+			{
+				startServerCommand();
+				CHANGEDSTATE = true;
+			}				
+			break;
+
+		case ID_MINIMIZE_BUTTON:
+			{
+				Minimize(hwnd, "KA Lite", "Right click over the tray icon for more options.");
+			}
+			break;
+
+		case ID_OPEN_IN_BROWSER:
+			if((int)ShellExecute(hwnd,L"open",L"http://127.0.0.1:8008/",NULL,NULL,SW_MAXIMIZE) <= 36)
+			{
+				MessageBox(hwnd,L"Cannot open KA Lite in browser!", L"Opening KA Lite error", MB_OK | MB_ICONINFORMATION);
+			}
+			break;
+
+		case ID_OPTIONS_RUNSTARTUP:
+			{
+				RUN_AT_STARTUP_CHECK_STATE = GetMenuState(hOptionsSubMenu, ID_OPTIONS_RUNSTARTUP, MF_BYCOMMAND);
+
+				if (RUN_AT_STARTUP_CHECK_STATE == SW_SHOWNA)
+				{
 					CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_RUNSTARTUP, MF_UNCHECKED);
-					ReadBuffer[0] = '1';
-					setConfigFile(ReadBuffer);
-					refreshConfigBuffer();
-					setStartupShortcut(1);
-                } else {
-                    CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_RUNSTARTUP, MF_CHECKED);
-					ReadBuffer[0] = '0';
-					setConfigFile(ReadBuffer);
-					refreshConfigBuffer();
-					setStartupShortcut(0);
-                }				  
-				break;
-			case ID_OPTIONS_AUTOMINIMIZE:
-				autoMinimizeCheckState = GetMenuState(hOptionsSubMenu, ID_OPTIONS_AUTOMINIMIZE, MF_BYCOMMAND); 
-                if (autoMinimizeCheckState == SW_SHOWNA) {
+					setConfigurationValue("RUN_AT_STARTUP", "FALSE");
+					setStartupShortcut(CONFIG_NO);
+				} 
+				else 
+				{
+					CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_RUNSTARTUP, MF_CHECKED);
+					setConfigurationValue("RUN_AT_STARTUP", "TRUE");
+					setStartupShortcut(CONFIG_YES);
+				}
+			}
+			break;
+
+		case ID_OPTIONS_AUTOMINIMIZE:
+			{
+				AUTO_MINIMIZE_CHECK_STATE = GetMenuState(hOptionsSubMenu, ID_OPTIONS_AUTOMINIMIZE, MF_BYCOMMAND);
+
+				if (AUTO_MINIMIZE_CHECK_STATE == SW_SHOWNA) 
+				{
 					CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOMINIMIZE, MF_UNCHECKED);
-					CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_UNCHECKED);
-					EnableMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_DISABLED | MF_GRAYED);
-					ReadBuffer[1] = '1';
-					ReadBuffer[2] = '1';
-					setConfigFile(ReadBuffer);
-					refreshConfigBuffer();
-                } else {
-                    CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOMINIMIZE, MF_CHECKED);
-					EnableMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_ENABLED);
-					ReadBuffer[1] = '0';
-					setConfigFile(ReadBuffer);
-					refreshConfigBuffer();
-                }
-				break;
-			case ID_OPTIONS_AUTOSTART:
-				if (autoStartServer == SW_SHOWNA)
+					setConfigurationValue("AUTO_MINIMIZE", "FALSE");
+				}
+				else
+				{
+					CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOMINIMIZE, MF_CHECKED);
+					setConfigurationValue("AUTO_MINIMIZE", "TRUE");
+				}
+			}
+			break;
+
+		case ID_OPTIONS_AUTOSTART:
+			{
+				AUTO_START_SERVER_CHECK_STATE = GetMenuState(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_BYCOMMAND);
+
+				if (AUTO_START_SERVER_CHECK_STATE == SW_SHOWNA)
 				{
 					CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_UNCHECKED);
-					ReadBuffer[2] = '1';
-					setConfigFile(ReadBuffer);
-					refreshConfigBuffer();
-				} else {
+					setConfigurationValue("AUTO_START_SERVER", "FALSE");
+				} 
+				else
+				{
 					CheckMenuItem(hOptionsSubMenu, ID_OPTIONS_AUTOSTART, MF_CHECKED);
-					ReadBuffer[2] = '0';
-					setConfigFile(ReadBuffer);
-					refreshConfigBuffer();
+					setConfigurationValue("AUTO_START_SERVER", "TRUE");
 				}
-				break;
-			case ID_HELP_ABOUT:
-				{
-					int ret = DialogBox(hINSTANCE, MAKEINTRESOURCE(IDD_DIALOG1), hwnd,reinterpret_cast<DLGPROC>( AboutDialogProc));
-				}
-				break;
-			case ID_FILE_EXIT:
+			}
+			break;
+
+		case ID_HELP_ABOUT:
+			{
+				int ret = DialogBox(hINSTANCE, MAKEINTRESOURCE(IDD_DIALOG1), hwnd, reinterpret_cast<DLGPROC>(AboutDialogProc));
+			}
+			break;
+
+		case ID_FILE_EXIT:
+			{
 				if(MessageBox(hwnd, L"Are you sure you want to exit from KA Lite?", L"KA Lite Exit", MB_YESNO | MB_ICONQUESTION) == IDYES)
 				{
 					stopServerCommand();
 					PostQuitMessage(0);
-				}				
-				break;
-			case ID_STUFF_GO:
-				break;
+				}
+			}
+			break;
+
+		case ID_STUFF_GO:
+			break;
 		}
 		break;
 
 	case WM_TRAYICON:
-    {
-		  printf( "Tray icon notification, from %d\n", wParam ) ;
-      
-		  switch(wParam)
-		  {
-		  case ID_TRAY_APP_ICON:
-			printf( "Its the ID_TRAY_APP_ICON. One app can have several tray icons.\n" ) ;
-			break;
-		  }
-
-		  // React when the mouse button is released.
-		  if (lParam == WM_LBUTTONUP)
-		  {
-			// The window is restored.
-			Restore();
-		  }
-		  else if (lParam == WM_RBUTTONDOWN) // I'm using WM_RBUTTONDOWN here because
-		  {
-			// Show the context menu.
-			// Get current mouse position.
-			POINT curPoint ;
-			GetCursorPos( &curPoint ) ;
-        
-			// Should SetForegroundWindow according to original poster so the popup shows on top.
-			SetForegroundWindow(hwnd);        
-        
-			// TrackPopupMenu blocks the application until TrackPopupMenu returns.
-			UINT clicked = TrackPopupMenu(
-          
-			  hMenu,
-			  TPM_RETURNCMD | TPM_NONOTIFY, // Don't send WM_COMMAND messages about this window, instead return the identifier of the clicked menu item.
-			  curPoint.x,
-			  curPoint.y,
-			  0,
-			  hwnd,
-			  NULL
-
-			);
-
-			// Exit from KA Lite.
-			if (clicked == ID_TRAY_EXIT_CONTEXT_MENU_ITEM)
-			{				
-				if(MessageBox(hwnd, L"Are you sure you want to exit from KA Lite?", L"KA Lite Exit", MB_YESNO | MB_ICONQUESTION) == IDYES)
-				{
-					stopServerCommand();
-					PostQuitMessage(0);
-				}
-			} 
-
-			// Starts the server.
-			if(clicked == ID_TRAY_START_CONTEXT_MENU_ITEM)
+		{
+			switch(wParam)
 			{
-				prepareShellInfoStructures();
-				startServerCommand();
+			case ID_TRAY_APP_ICON:
+				// Its the ID_TRAY_APP_ICON. One app can have several tray icons
+				break;
 			}
 
-			// Stop the server.
-			if(clicked == ID_TRAY_STOP_CONTEXT_MENU_ITEM)
+			// React when the mouse button is released.
+			if (lParam == WM_LBUTTONUP)
 			{
-				stopServerCommand();
+				// The window is restored.
+				Restore(hwnd);
 			}
-
-			if(clicked == ID_TRAY_START_STOP_CONTEXT_MENU_ITEM)
+			else if (lParam == WM_RBUTTONDOWN) 
 			{
-				if(SERVERISRUNNING)
+				// Show the context menu.
+				// Get current mouse position.
+				POINT curPoint ;
+				GetCursorPos(&curPoint);
+
+				// Sets the main window in foreground.
+				SetForegroundWindow(hwnd);        
+
+				// TrackPopupMenu blocks the application until TrackPopupMenu returns.
+				UINT clicked = TrackPopupMenu(
+					hMenu,
+					TPM_RETURNCMD | TPM_NONOTIFY, // Don't send WM_COMMAND messages about this window, instead return the identifier of the clicked menu item.
+					curPoint.x,
+					curPoint.y,
+					0,
+					hwnd,
+					NULL
+					);
+
+				// Exit from KA Lite.
+				if (clicked == ID_TRAY_EXIT_CONTEXT_MENU_ITEM)
+				{				
+					if(MessageBox(hwnd, L"Are you sure you want to exit from KA Lite?", L"KA Lite Exit", MB_YESNO | MB_ICONQUESTION) == IDYES)
+					{
+						stopServerCommand();
+						PostQuitMessage(0);
+					}
+				} 
+
+				// Starts the server.
+				if(clicked == ID_TRAY_START_CONTEXT_MENU_ITEM)
 				{
-					stopServerCommand();
-					hMenu = CreatePopupMenu();
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, L"Start server");											
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, L"Open KA Lite");
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTORE_CONTEXT_MENU_ITEM, L"Restore window");
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, L"Exit KA Lite");
-					CHANGEDSTATE = true;
-				} else {
-					prepareShellInfoStructures();
 					startServerCommand();
-					hMenu = CreatePopupMenu();
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_START_STOP_CONTEXT_MENU_ITEM, L"Stop server");											
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_BROWSER_CONTEXT_MENU_ITEM, L"Open KA Lite");
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_RESTORE_CONTEXT_MENU_ITEM, L"Restore window");
-					AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT_CONTEXT_MENU_ITEM, L"Exit KA Lite");
-					CHANGEDSTATE = true;
 				}
-			}
 
-			// Open in browser.
-			if(clicked == ID_TRAY_BROWSER_CONTEXT_MENU_ITEM)
-			{
-			  if((int)ShellExecute(hwnd,L"open",L"http://127.0.0.1:8008/",NULL,NULL,SW_MAXIMIZE) <= 36)
+				// Stop the server.
+				if(clicked == ID_TRAY_STOP_CONTEXT_MENU_ITEM)
 				{
-					MessageBox(hwnd,L"Cannot open KA Lite in browser!", L"Opening KA Lite error", MB_OK | MB_ICONINFORMATION);
+					stopServerCommand();
 				}
-			}
 
-			// Restore window.
-			if(clicked == ID_TRAY_RESTORE_CONTEXT_MENU_ITEM)
-			{
-				Restore();
-			}
-		  }		  
-    }
-    break;
+				if(clicked == ID_TRAY_START_STOP_CONTEXT_MENU_ITEM)
+				{
+					if(SERVERISRUNNING)
+					{
+						stopServerCommand();
+						CHANGEDSTATE = true;
+					}
+					else 
+					{
+						startServerCommand();
+						CHANGEDSTATE = true;
+					}
+				}
+
+				// Open in browser.
+				if(clicked == ID_TRAY_BROWSER_CONTEXT_MENU_ITEM)
+				{
+					if((int)ShellExecute(hwnd,L"open",L"http://127.0.0.1:8008/",NULL,NULL,SW_MAXIMIZE) <= 36)
+					{
+						MessageBox(hwnd,L"Cannot open KA Lite in browser!", L"Opening KA Lite error", MB_OK | MB_ICONINFORMATION);
+					}
+				}
+
+				// Restore window.
+				if(clicked == ID_TRAY_RESTORE_CONTEXT_MENU_ITEM)
+				{
+					Restore(hwnd);
+				}
+			}		  
+		}
+		break;
 
 	case WM_NCHITTEST:
 		{
 			// This tests if you are not in the client area. (Out of the window).
 			UINT uHitTest = DefWindowProc(hwnd, WM_NCHITTEST, wParam, lParam);
 			if(uHitTest == HTCLIENT)
-			  return HTCAPTION;
+			{
+				return HTCAPTION;
+			}
 			else
-			  return uHitTest;
+			{
+				return uHitTest;
+			}
 		}		
-	
+		break;
+
 	case WM_CLOSE:
-		Minimize() ;
-		return 0;
-		break;
-	case WM_DESTROY:
-		if(SERVERISRUNNING)
 		{
-			stopServerCommand();
-		}		
-		PostQuitMessage(0);
+			Minimize(hwnd, "KA Lite", "Right click over the tray icon for more options.") ;
+			return 0;
+		}
 		break;
-	
+
+	case WM_DESTROY:
+		{
+			if(SERVERISRUNNING)
+			{
+				stopServerCommand();
+			}		
+			PostQuitMessage(0);
+		}
+		break;
+
 	default:
-		return DefWindowProc(hwnd, msg, wParam, lParam);
+		{
+			return DefWindowProc(hwnd, msg, wParam, lParam);
+		}
 	}
 	return 0;
 }
 
-TCHAR className[] = L"KA Lite Class";
 
+
+/*************************************************************************************
+*                                                                                    *
+*	This function checks if there is already and instance of KA Lite running.        *
+*                                                                                    *
+**************************************************************************************/
 HWND GetRunningWindow()
 {
 	// Check if exists an application with the same class name as this application
@@ -851,9 +802,12 @@ HWND GetRunningWindow()
 	{
 		HWND hWndPopup = GetLastActivePopup(hWnd);
 		if (IsWindow(hWndPopup))
+		{
 			hWnd = hWndPopup; // Previous instance exists
+		}
 	}
-	else {
+	else
+	{
 		hWnd = NULL; // Previous instance doesnt exist
 		return hWnd;
 	}
@@ -861,33 +815,33 @@ HWND GetRunningWindow()
 }
 
 
-// Main application window.
+
+/*************************************************************************************
+*                                                                                    *
+*	This is the main application window.                                             *
+*                                                                                    *
+**************************************************************************************/
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
-	
+
 	// Checks for previous instance of our program
 	HWND hOtherWnd = GetRunningWindow();
 
 	// Allow only one instance of the program
 	if (hOtherWnd) // hOtherWnd != NULL -> Previous instance exists
 	{
-		MessageBox(hOtherWnd, L"KA Lite is already running", L"Info", MB_OK);
 		SetForegroundWindow(hOtherWnd); // Activate it &
 		if (IsIconic(hOtherWnd))
-		ShowWindow(hOtherWnd, SW_RESTORE); // restore it
+		{
+			ShowWindow(hOtherWnd, SW_RESTORE); // restore it
+		}
 		return FALSE; // Exit program
 	}
 
 	TCHAR windowTitle[30] = {};
-	wcscat_s(windowTitle, L"KA Lite ");
-	
-	if(getVersionFromFile()==0)
-	{		
-		wcscat_s(windowTitle, versionFinal);
-	}
+	setKALiteVersion(windowTitle,30);
 
-	Sleep(5000);
+	//Sleep(5000);
 
-	runServerOnCreationMessage = TRUE;
 	CHANGEDSTATE = FALSE;
 	SERVERISRUNNING = FALSE;	
 
@@ -896,11 +850,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	hINSTANCE = hInstance;
 	WNDCLASSEX wc = {0};
 	MSG Msg;
-	
+
 	// Registering the window class.
 	wc.cbSize = sizeof(WNDCLASSEX);
 	wc.lpfnWndProc = WndProc;
-    wc.cbClsExtra = 0;
+	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
 	wc.hInstance = hInstance;
 	wc.hIcon = LoadIcon(hINSTANCE,MAKEINTRESOURCE(IDI_ICON1));
@@ -911,33 +865,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	wc.style=CS_HREDRAW|CS_VREDRAW;
 
 	if(!RegisterClassEx(&wc)){
-		MessageBox(NULL, L"Failed to regist window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
+		MessageBox(NULL, L"Failed to register the window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
 		return 0;
 	}
 
-	if(readConfigFile() == 0)
-	{
-		if ( ReadBuffer[0] == '0' )
-		{
-			setStartupShortcut(0);
-			startupCheckState = SW_SHOWNA;
-		}
-		else
-		{
-			setStartupShortcut(1);
-		}		
-		if( ReadBuffer[1] == '0' )
-		{
-			autoMinimizeCheckState = SW_SHOWNA;
-		}		
-		if( ReadBuffer[2] == '0' )
-		{
-			autoStartServer = SW_SHOWNA;
-			prepareShellInfoStructures();
-		    startServerCommand();
-		}
-	}
-	
+	loadConfigurations();
+
 	// Creating the window.
 	DWORD windowStyle = WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU| CS_NOCLOSE;
 	hwnd = CreateWindowEx(NULL, className, windowTitle, windowStyle , CW_USEDEFAULT, CW_USEDEFAULT, 285, 180, NULL,  NULL, hInstance, NULL);	
@@ -946,35 +879,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		MessageBox(NULL, L"Failed to create the window.", L"Error",MB_ICONEXCLAMATION | MB_OK);
 		return 0;
 	}
-	
+
+	// Disables MINIMIZE and MAXIMIZE Buttons
 	SetWindowLong(hwnd, GWL_STYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_MINIMIZEBOX);
 	SetWindowLong(hwnd, GWL_STYLE, GetWindowLong(hwnd, GWL_STYLE) & ~WS_MAXIMIZEBOX);
 
 	// Initialize the NOTIFYICONDATA structure.
-	InitNotifyIconData();
+	InitNotifyIconData(hwnd, hINSTANCE);	
 
 	ShowWindow(hwnd, nCmdShow);
 	UpdateWindow(hwnd);	
 
-	if(autoMinimizeCheckState == SW_SHOWNA)
+	if(AUTO_MINIMIZE_CHECK_STATE == SW_SHOWNA)
 	{
 		if(SERVERISRUNNING)
 		{
-			lstrcpy(g_notifyIconData.szInfoTitle , L"KA Lite is running.");
-			lstrcpy(g_notifyIconData.szInfo , L"The server should now be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"");
-			Minimize();
-			lstrcpy(g_notifyIconData.szInfoTitle , L"KA Lite");
-			lstrcpy(g_notifyIconData.szInfo , L"Right click for KA Lite options!");
+			Minimize(hwnd, "KA Lite is running", "The server should now be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"");
 		}
 		else 
 		{
-			g_notifyIconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_SHOWTIP;
-			Minimize();
+			Minimize(hwnd, "KA Lite", "Right click over the tray icon for more options.");
 		}
-		InitNotifyIconData();
 	}
-
-	runServerOnCreationMessage = FALSE;
 
 	// The Message Loop.
 	while(GetMessage(&Msg, NULL, 0 , 0) > 0){
@@ -984,7 +910,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	if(!IsWindowVisible(hwnd))
 	{
-		Shell_NotifyIcon(NIM_DELETE, &g_notifyIconData);
+		destroyTrayIcon();
 	}
 
 	return Msg.wParam;
