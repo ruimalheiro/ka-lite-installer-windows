@@ -63,19 +63,16 @@ HINSTANCE hINSTANCE;
 HBITMAP bitmap;
 
 // Structures to specify how will cmd and both python process run.
-SHELLEXECUTEINFO cmdCommandsInfo;
 SHELLEXECUTEINFO pythonShellExecuteInfo_1;
 SHELLEXECUTEINFO pythonShellExecuteInfo_2;
 SHELLEXECUTEINFO winshortcutInfo;
 
 // Process ID.
-DWORD cmdProcess;
 DWORD processID1;
 DWORD processID2;
 DWORD winshortcutID;
 
 // Process handle.
-HANDLE cmdProcessHandle;
 HANDLE processHandle1;
 HANDLE processHandle2;
 HANDLE winshortcutHandle;
@@ -199,16 +196,6 @@ void setStartupShortcut(char CONFIG_OPTION)
 **************************************************************************************/
 void prepareRunningProcessesStructures()
 {
-	cmdCommandsInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-	cmdCommandsInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-	cmdCommandsInfo.hwnd = NULL;
-	cmdCommandsInfo.lpVerb = L"open";
-	cmdCommandsInfo.lpFile = L"cmd.exe" ;
-	cmdCommandsInfo.lpParameters = L"move static\\videos\\* ..\\content > nul 2> nul";
-	cmdCommandsInfo.lpDirectory = L"ka-lite\\kalite\\";
-	cmdCommandsInfo.nShow = SW_HIDE;
-	cmdCommandsInfo.hInstApp = NULL;
-
 	pythonShellExecuteInfo_1.cbSize = sizeof(SHELLEXECUTEINFO);
 	pythonShellExecuteInfo_1.fMask = SEE_MASK_NOCLOSEPROCESS;
 	pythonShellExecuteInfo_1.hwnd = NULL;
@@ -240,32 +227,24 @@ void prepareRunningProcessesStructures()
 void startServerCommand()
 {
 	prepareRunningProcessesStructures();
-	if(ShellExecuteEx(&cmdCommandsInfo))
+	if(ShellExecuteEx(&pythonShellExecuteInfo_1))
 	{
-		cmdProcess = GetProcessId(cmdCommandsInfo.hProcess);
-		if(ShellExecuteEx(&pythonShellExecuteInfo_1))
+		processID1 = GetProcessId(pythonShellExecuteInfo_1.hProcess);
+		if(ShellExecuteEx(&pythonShellExecuteInfo_2))
 		{
-			processID1 = GetProcessId(pythonShellExecuteInfo_1.hProcess);
-			if(ShellExecuteEx(&pythonShellExecuteInfo_2))
-			{
-				processID2 = GetProcessId(pythonShellExecuteInfo_2.hProcess);
-				SERVERISRUNNING = TRUE;
-				sendTrayMessage(hwnd, "KA Lite is running", "The server should now be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"");
-			}
-			else
-			{
-				MessageBox(hwnd,L"Could not start the server! Error3", L"Starting error", MB_OK | MB_ICONERROR);
-			}
+			processID2 = GetProcessId(pythonShellExecuteInfo_2.hProcess);
+			SERVERISRUNNING = TRUE;
+			sendTrayMessage(hwnd, "KA Lite is running", "The server should now be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"");
 		}
 		else
 		{
-			MessageBox(hwnd,L"Could not start the server! Error2", L"Starting error", MB_OK | MB_ICONERROR);
-		}		
+			MessageBox(hwnd,L"Could not start the server! Cherrypy server error!", L"Starting error", MB_OK | MB_ICONERROR);
+		}
 	}
 	else
 	{
-		MessageBox(hwnd,L"Could not start the server! Error1", L"Starting error", MB_OK | MB_ICONERROR);		
-	}			
+		MessageBox(hwnd,L"Could not start the server! Cronserver error!", L"Starting error", MB_OK | MB_ICONERROR);
+	}					
 }
 
 
@@ -278,14 +257,11 @@ void startServerCommand()
 void stopServerCommand()
 {
 	processHandle1 = OpenProcess(PROCESS_TERMINATE, false,  processID1);
-	processHandle2 = OpenProcess(PROCESS_TERMINATE, false, processID2);
-	cmdProcessHandle = OpenProcess(PROCESS_TERMINATE, false,  cmdProcess);		
+	processHandle2 = OpenProcess(PROCESS_TERMINATE, false, processID2);		
 	TerminateProcess(processHandle1,1);
-	TerminateProcess(processHandle2,1);
-	TerminateProcess(cmdProcessHandle,1);		
+	TerminateProcess(processHandle2,1);		
 	CloseHandle(processHandle1);
 	CloseHandle(processHandle2);
-	CloseHandle(cmdProcessHandle);
 	SERVERISRUNNING = FALSE;
 }
 
@@ -354,7 +330,7 @@ void enabledMainWindowButtons(bool serverAction, bool openBrowser)
 /*************************************************************************************
 *                                                                                    *
 *	This function is used to check and control the text and availability of all the  *
-*   options in each cicle.                                                           *
+*   options in each mode (server running / server stoped).                           *
 *                                                                                    *
 **************************************************************************************/
 void CheckMenus()
@@ -791,7 +767,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 /*************************************************************************************
 *                                                                                    *
-*	This function checks if there is already and instance of KA Lite running.        *
+*	This function checks if there is already an instance of KA Lite running.        *
 *                                                                                    *
 **************************************************************************************/
 HWND GetRunningWindow()
@@ -908,6 +884,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		DispatchMessage(&Msg);
 	}
 
+	// After exiting KA Lite, the icon is removed from system tray.
 	if(!IsWindowVisible(hwnd))
 	{
 		destroyTrayIcon();

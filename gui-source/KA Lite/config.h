@@ -155,7 +155,7 @@ bool compareKeys(const char * key1, const char * key2)
 
 /*************************************************************************************
 *                                                                                    *
-*	Extact the value of a key if that key exists.                                    *
+*	Extract the value of a key if that key exists.                                   *
 *                                                                                    *
 **************************************************************************************/
 int extractValue(const char * configurationBuffer, const char * targetKey, char * resultValue, int resultValueArraySize)
@@ -307,7 +307,7 @@ int addValue(const char * configurationBuffer, const char * targetKey, const cha
 	{
 		resultConfigurationBuffer[i] = configurationBuffer[i];
 	}
-	
+
 	resultConfigurationBuffer[i] = ':';
 	i++;
 	tempUpdateIndex = i;
