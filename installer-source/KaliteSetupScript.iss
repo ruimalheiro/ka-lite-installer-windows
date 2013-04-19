@@ -44,25 +44,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\ka-lite\start.bat"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\install.bat"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\INSTALL.md"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\install.sh"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\LICENSE"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\python.sh"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\README.md"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\start.bat"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\start.sh"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\stop.bat"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\ka-lite\stop.sh"; DestDir: "{app}\ka-lite"; Flags: ignoreversion
-Source: "..\gui-packed\KA Lite.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\gui-packed\winshortcut.vbs"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\ka-lite\docs\*"; DestDir: "{app}\ka-lite\docs"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\ka-lite\kalite\*"; DestDir: "{app}\ka-lite\kalite"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\ka-lite\locale\*"; DestDir: "{app}\ka-lite\locale"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\ka-lite\python-packages\*"; DestDir: "{app}\ka-lite\python-packages"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\ka-lite\*"; DestDir: "{app}\ka-lite"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\ka-lite\content\*"; DestDir: "{app}\ka-lite\content"; Flags: ignoreversion recursesubdirs createallsubdirs uninsneveruninstall
 Source: "..\ka-lite\kalite\database\*"; DestDir: "{app}\ka-lite\kalite\database"; Flags: ignoreversion recursesubdirs createallsubdirs uninsneveruninstall
+Source: "..\gui-packed\KA Lite.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\gui-packed\winshortcut.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\python-setup\*"; DestDir: "{app}\python-setup"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
@@ -86,6 +72,10 @@ Type: filesandordirs; Name: "{app}\ka-lite\kalite\faq"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\main"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\securesync"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\utils"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\central"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\registration"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\static"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\templates"
 Type: Files; Name: "{app}\ka-lite\kalite\__init__.pyc"
 Type: Files; Name: "{app}\ka-lite\kalite\croncount.pyc"
 Type: Files; Name: "{app}\ka-lite\kalite\manage.pyc"
