@@ -849,7 +849,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// Creating the window.
 	DWORD windowStyle = WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU| CS_NOCLOSE;
-	hwnd = CreateWindowEx(NULL, className, windowTitle, windowStyle , CW_USEDEFAULT, CW_USEDEFAULT, 285, 180, NULL,  NULL, hInstance, NULL);	
+	hwnd = CreateWindowEx(NULL, className, windowTitle, windowStyle , CW_USEDEFAULT, CW_USEDEFAULT, 275, 170, NULL,  NULL, hInstance, NULL);	
 
 	if(hwnd == NULL){
 		MessageBox(NULL, L"Failed to create the window.", L"Error",MB_ICONEXCLAMATION | MB_OK);
