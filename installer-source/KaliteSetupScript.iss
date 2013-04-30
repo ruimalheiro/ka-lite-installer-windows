@@ -318,7 +318,7 @@ begin
       begin
         if ShellExec('open','winshortcut.vbs','0',ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
         begin
-          if SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', '011' + #13#10, False) then
+          if SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_STARTUP:TRUE;' + #13#10, False) then
           begin
           end
           else begin
