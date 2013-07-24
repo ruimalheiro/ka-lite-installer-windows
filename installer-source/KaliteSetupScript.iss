@@ -289,8 +289,8 @@ begin
       end;
       end
       else begin
-        MsgBox('KA Lite Database' #13#13 'You will now be asked to create an administrator account, which will be used to manage this server. You will need to remember the username and password, to login as an administrator to the KA Lite web interface. (If you do not have an email address, you can simply put "test@test.com").', mbInformation, MB_OK);
-        if ShellExec('open', 'python.exe', 'manage.py createsuperuser', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, SuperUserCreate) then
+        MsgBox('KA Lite Database' #13#13 'You will now be asked to create an administrator account, which will be used to manage this server. You will need to remember the username and password, to login as an administrator to the KA Lite web interface.', mbInformation, MB_OK);
+        if ShellExec('open', 'python.exe', 'manage.py createsuperuser --email=dummy@learningequality.org', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, SuperUserCreate) then
         begin
         end
         else begin
