@@ -3,14 +3,8 @@
 #define MyAppURL "http://learningequality.org/"
 #define MyAppExeName "KA Lite.exe"
 
-#define FileHandle
-#define FileLine
-#sub ProcessFileLine
-  #pragma message FileLine
-#endsub
-#for {FileHandle = FileOpen("..\ka-lite\kalite\version.py"); \
-  FileHandle && !FileEof(FileHandle); FileLine = FileRead(FileHandle)} \
-  ProcessFileLine
+#define FileHandle = FileOpen("..\ka-lite\kalite\version.py");
+#define FileLine = FileRead(FileHandle);
 #if FileHandle
   #expr FileClose(FileHandle)
 #endif
