@@ -61,15 +61,26 @@ Name: "{app}\"; Permissions: everyone-modify
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\ka-lite\python-packages"
-Type: filesandordirs; Name: "{app}\ka-lite\kalite\config"
-Type: filesandordirs; Name: "{app}\ka-lite\kalite\faq"
-Type: filesandordirs; Name: "{app}\ka-lite\kalite\main"
-Type: filesandordirs; Name: "{app}\ka-lite\kalite\securesync"
-Type: filesandordirs; Name: "{app}\ka-lite\kalite\utils"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\foo"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\central"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\coachreports"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\config"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\contact"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\control_panel"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\faq"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\khanload"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\loadtesting"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\main"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\management"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\registration"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\securesync"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\shared"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\static"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\templatetags"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\templates"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\tests"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\updates"
+Type: filesandordirs; Name: "{app}\ka-lite\kalite\utils"
 Type: Files; Name: "{app}\ka-lite\kalite\*.pyc"
 Type: Files; Name: "{userstartup}\KA Lite.lnk"
 Type: Files; Name: "{app}\CONFIG.dat"
@@ -256,58 +267,24 @@ begin
         // Database not found
         existDatabase := False;
       end;
+      
+      
     
-      MsgBox('KA Lite Database' #13#13 'Setup will now prepare the database. Please be patient; this may take some time.', mbInformation, MB_OK);
-    
-      if ShellExec('open', 'python.exe', 'manage.py syncdb --migrate --noinput', ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, MigrateCode) then
+      if not ShellExec('open', 'python.exe', 'manage.py install -o "'+UserPage.Values[0]+'" -d "'+UserPage.Values[1] + '"', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
       begin
-        installFlag:=false;
-      end
-      else begin
-        MsgBox('Error' #13#13 'Failed to call Django database sync.', mbError, MB_OK);
-      end;
-    
-      if existDatabase then
-      begin
-        if MsgBox('An administrator account already exists in the database. Do you want to create an additional administrator account now?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
-        begin
-          if ShellExec('open', 'python.exe', 'manage.py createsuperuser', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, SuperUserCreate) then
-          begin
-          end
-        else begin
-          MsgBox('Error' #13#13 'Failed to create Django super user.', mbError, MB_OK);
-        end;
-      end
-      else begin
-        // Ignore
-      end;
-      end
-      else begin
-        MsgBox('KA Lite Database' #13#13 'You will now be asked to create an administrator account, which will be used to manage this server. You will need to remember the username and password, to login as an administrator to the KA Lite web interface.', mbInformation, MB_OK);
-        if ShellExec('open', 'python.exe', 'manage.py createsuperuser --email=dummy@learningequality.org', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, SuperUserCreate) then
-        begin
-        end
-        else begin
-          MsgBox('Error' #13#13 'Failed to create Django super user.', mbError, MB_OK);
-        end;
-      end;
-  
-      if ShellExec('open', 'python.exe', 'manage.py generatekeys', ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, GenerateKeysCode) then
-      begin
-       //
-      end
-      else begin
-         MsgBox('Error' #13#13 'Failed to call Django generatekeys.', mbInformation, MB_OK);
-      end;
-    
-      if ShellExec('open', 'python.exe', 'manage.py initdevice '+UserPage.Values[0]+' '+UserPage.Values[1], ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, ServerNameDescriptionCode) then
-      begin
-       //
-      end
-      else begin
-        MsgBox('Error' #13#13 'Failed to add server name and description.', mbInformation, MB_OK);
+        MsgBox('Error' #13#13 'Failed to initialize database.', mbInformation, MB_OK);
       end;    
+      
+      if not ShellExec('open', 'python.exe', 'manage.py videoscan', ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, ServerNameDescriptionCode) then
+      begin
+        MsgBox('Error' #13#13 'Failed to scan video files.', mbInformation, MB_OK);
+      end;    
+      
     
+      
+      
+    
+      // stop changing here
       if UsagePage.SelectedValueIndex = 0 then
       begin
         if ShellExec('open','winshortcut.vbs','0',ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
