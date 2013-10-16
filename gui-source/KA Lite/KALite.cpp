@@ -201,7 +201,7 @@ void prepareRunningProcessesStructures()
 	pythonShellExecuteInfo_1.hwnd = NULL;
 	pythonShellExecuteInfo_1.lpVerb = L"open";
 	pythonShellExecuteInfo_1.lpFile = L"python.exe" ;
-	pythonShellExecuteInfo_1.lpParameters = L"cronserver.py";
+	pythonShellExecuteInfo_1.lpParameters = L"manage.py cronserver";
 	pythonShellExecuteInfo_1.lpDirectory = L"ka-lite\\kalite\\";
 	pythonShellExecuteInfo_1.nShow = SW_HIDE;
 	pythonShellExecuteInfo_1.hInstApp = NULL;
