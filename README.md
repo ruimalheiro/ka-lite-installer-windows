@@ -17,5 +17,6 @@ This project provides a smoother way to install and run KA Lite in a Windows Mac
 * The output file named "KALiteSetup.exe" will appear within this project folder.
 
 ---
-#### To clone this repository, run the following line. (the `--recursive` is required due to the `ka-lite` submodule)
+##### To clone this repository, run the following line: 
     git clone --recursive https://github.com/learningequality/ka-lite-windows.git
+##### (the `--recursive` is required due to the `ka-lite` submodule)
