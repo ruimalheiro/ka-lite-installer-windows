@@ -2,7 +2,7 @@ KA Lite Windows
 ==========
 
 This project provides a smoother way to install and run KA Lite in a Windows Machine.
-
+Also see: [compiled bundle and video overview](http://kalitewiki.learningequality.org/installation/windows-installation).
 ---
 #### This project was built using the following software:
 * Inno Setup 5.5.3
