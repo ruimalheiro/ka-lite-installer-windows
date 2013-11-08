@@ -4,5 +4,5 @@ for /f "tokens=1-2 delims==," %%I in (version.py) do ( if "%%I" == "VERSION " ( 
 set version=%version:"=%
 set version=%version: =%
 cd ..\..\installer-source
-echo %version% > version.dat
+echo %version% > version.temp
 exit
