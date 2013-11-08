@@ -19,3 +19,7 @@ This project provides a smoother way to install and run KA Lite in a Windows Mac
 ##### To clone this repository, run the following line: 
     git clone --recursive https://github.com/learningequality/ka-lite-windows.git
 ###### (the `--recursive` is required due to the `ka-lite` submodule)
+
+---
+##### If you wish to build it using Wine, run the following line:
+    wine inno-compiler/ISCC.exe installer-source/KaliteSetupScript.iss
