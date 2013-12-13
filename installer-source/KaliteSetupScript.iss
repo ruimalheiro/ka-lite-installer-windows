@@ -3,12 +3,12 @@
 #define MyAppURL "http://learningequality.org/"
 #define MyAppExeName "KA Lite.exe"
 
-#define FileHandle = FileOpen("..\ka-lite\kalite\version.py");
-#define FileLine = FileRead(FileHandle);
-#if FileHandle
-  #expr FileClose(FileHandle)
-#endif
-#define MyVersion StringChange(FileLine, "VERSION = ", "")
+#define getKALiteVerion() \
+    Local[1] = Exec(SourcePath+"\getversion.bat") == 0 ? StringChange(FileRead(FileOpen(SourcePath+"\version.temp")), " ", "") : "null"
+
+#define MyVersion = getKALiteVerion();
+
+#expr DeleteFile(SourcePath+"\version.temp")
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
