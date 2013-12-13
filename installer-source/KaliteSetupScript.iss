@@ -270,7 +270,7 @@ begin
       
       
     
-      if not ShellExec('open', 'python.exe', 'manage.py install -o "'+UserPage.Values[0]+'" -d "'+UserPage.Values[1] + '"', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
+      if not ShellExec('open', 'python.exe', 'manage.py setup -o "'+UserPage.Values[0]+'" -d "'+UserPage.Values[1] + '"', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
       begin
         MsgBox('Error' #13#13 'Failed to initialize database.', mbInformation, MB_OK);
       end;    
