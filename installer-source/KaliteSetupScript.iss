@@ -91,7 +91,8 @@ var
   startupFlag : String;
   UserPage: TInputQueryWizardPage;
   UsagePage: TInputOptionWizardPage;
-  
+  existDatabase : boolean;
+
 procedure InitializeWizard;
 begin
 
@@ -172,29 +173,22 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  MigrateCode: integer;
-  SuperUserCreate: integer;
-  GenerateKeysCode: integer;
   ServerNameDescriptionCode: integer;
   StartupCode: integer;
-  existDatabase : boolean;
-  createSuper : boolean;
   moveKaliteFolderTemp: integer;
   moveContentFolderTemp: integer;
   cleanKaliteFolder: integer;
   restoreKaliteFolder: integer;
   restoreContentFolder: integer;
   informationBoxFlagged: boolean;
+  setupCommand: string;
 begin
   
-  existDatabase := False;
-  createSuper := False;
-  informationBoxFlagged :=False;
-  
-  if(CurStep=ssInstall) then
+  if CurStep = ssInstall then
   begin
-    
-    if(DirExists(ExpandConstant('{app}')+'\kalite')) then
+    informationBoxFlagged :=False;
+      
+    if DirExists(ExpandConstant('{app}') + '\kalite') then
     begin
       MsgBox('KA Lite old data structure' #13#13 'Setup detected that you have the old file structure. Setup will now move data to update the structure. Please be patient; this may take some time.', mbInformation, MB_OK);
       informationBoxFlagged :=True;      
@@ -203,7 +197,7 @@ begin
       end;      
     end; 
       
-    if(DirExists(ExpandConstant('{app}')+'\content')) then
+    if DirExists(ExpandConstant('{app}') + '\content') then
     begin
       if not informationBoxFlagged then
       begin
@@ -215,62 +209,49 @@ begin
       end;        
     end;      
     
-    if (informationBoxFlagged) then
+    if informationBoxFlagged then
     begin
       if Exec(ExpandConstant('{cmd}'),'/C cd .. & del /q "'+ExpandConstant('{app}')+'\*" & for /d %x in ( "'+ExpandConstant('{app}')+'\*" ) do @rd /s /q "%x"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, cleanKaliteFolder) then
       begin
       end;
     
     
-      if(DirExists(ExpandConstant('{tmp}')+'\ka-lite\kalite')) then
+      if DirExists(ExpandConstant('{tmp}')+'\ka-lite\kalite') then
       begin
-        if Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\kalite & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\kalite\* ka-lite\kalite', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreKaliteFolder) then
-        begin
-        end;
+        Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\kalite & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\kalite\* ka-lite\kalite', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreKaliteFolder);
       end;
-            
-      if(DirExists(ExpandConstant('{tmp}')+'\ka-lite\content')) then
+
+      if DirExists(ExpandConstant('{tmp}')+'\ka-lite\content') then
       begin
-        if Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\content & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\content\* ka-lite\content', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreContentFolder) then
-        begin
-        end;
+        Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\content & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\content\* ka-lite\content', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreContentFolder);
       end;
     end;
-       
+ 
+    existDatabase := False;
+    if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
+    begin
+      if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh, or keep the old database?' #13#13 'Choose "Yes" to delete or "No" to keep. (keep is recommended)', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
+      begin
+        existDatabase := True;
+      end
+      else if DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
+      begin
+        MsgBox('Error' #13#13 'Failed to delete Django database.', mbError, MB_OK);
+      end;
+    end;
   end;
-  
 
   if(CurStep=ssPostInstall) then
   begin
     if(installFlag) then
     begin
-   
-      if (FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite')) then
-      begin      
-        existDatabase := True;        
-        if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh, or keep the old database?' #13#13 'Choose "Yes" to delete or "No" to keep. (keep is recommended)', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
-        begin
-          if DeleteFile(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
-          begin
-            existDatabase := False;            
-          end
-          else begin
-            MsgBox('Error' #13#13 'Failed to delete Django database.', mbError, MB_OK);
-          end;  
-        end
-        else begin
-          existDatabase := True;
-        end;         
-      end
-      else
-      begin
-        // Database not found
-        existDatabase := False;
+         
+      setupCommand := 'manage.py setup -o "'+UserPage.Values[0]+'" -d "'+UserPage.Values[1] + '"';
+      if (existDatabase) then begin
+          setupCommand := setupCommand + ' --noinput';
       end;
       
-      
-    
-      if not ShellExec('open', 'python.exe', 'manage.py setup -o "'+UserPage.Values[0]+'" -d "'+UserPage.Values[1] + '"', ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
+      if not ShellExec('open', 'python.exe', setupCommand, ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
       begin
         MsgBox('Error' #13#13 'Failed to initialize database.', mbInformation, MB_OK);
       end;    
@@ -280,10 +261,6 @@ begin
         MsgBox('Error' #13#13 'Failed to scan video files.', mbInformation, MB_OK);
       end;    
       
-    
-      
-      
-    
       // stop changing here
       if UsagePage.SelectedValueIndex = 0 then
       begin
