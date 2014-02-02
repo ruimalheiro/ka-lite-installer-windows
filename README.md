@@ -1,4 +1,4 @@
-KA Lite Windows
+KA Lite Installer for Windows
 ==========
 
 This project provides a smoother way to install and run KA Lite in a Windows Machine.  
