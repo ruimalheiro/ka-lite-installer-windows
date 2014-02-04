@@ -197,7 +197,7 @@ void setStartupShortcut(char CONFIG_OPTION)
 void prepareRunningProcessesStructures()
 {
 	pythonShellExecuteInfo_1.cbSize = sizeof(SHELLEXECUTEINFO);
-	pythonShellExecuteInfo_1.fMask = SEE_MASK_NOCLOSEPROCESS;
+	pythonShellExecuteInfo_1.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
 	pythonShellExecuteInfo_1.hwnd = NULL;
 	pythonShellExecuteInfo_1.lpVerb = L"open";
 	pythonShellExecuteInfo_1.lpFile = L"python.exe" ;
@@ -207,7 +207,7 @@ void prepareRunningProcessesStructures()
 	pythonShellExecuteInfo_1.hInstApp = NULL;
 
 	pythonShellExecuteInfo_2.cbSize = sizeof(SHELLEXECUTEINFO);
-	pythonShellExecuteInfo_2.fMask = SEE_MASK_NOCLOSEPROCESS;
+	pythonShellExecuteInfo_2.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
 	pythonShellExecuteInfo_2.hwnd = NULL;
 	pythonShellExecuteInfo_2.lpVerb = L"open";
 	pythonShellExecuteInfo_2.lpFile = L"python.exe" ;
@@ -256,7 +256,7 @@ void startServerCommand()
 **************************************************************************************/
 void stopServerCommand()
 {
-	processHandle1 = OpenProcess(PROCESS_TERMINATE, false,  processID1);
+	processHandle1 = OpenProcess(PROCESS_TERMINATE, false, processID1);
 	processHandle2 = OpenProcess(PROCESS_TERMINATE, false, processID2);		
 	TerminateProcess(processHandle1,1);
 	TerminateProcess(processHandle2,1);		
