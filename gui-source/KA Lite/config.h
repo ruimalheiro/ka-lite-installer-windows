@@ -5,11 +5,9 @@
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Functions declaration.                                                           *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Functions declaration.
+*/
 int readConfigurationFileBuffer(char * resultConfigurationBuffer);
 int writeConfigurationFileBuffer(char * configurationBuffer);
 bool compareKeys(const char * key1, const char * key2);
@@ -21,11 +19,9 @@ int getConfigurationValue(char * targetKey, char * resultValue, int resultValueB
 int setConfigurationValue(const char * targetKey, const char * value);
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Read the configuration file to some buffer.                                      *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Read the configuration file to some buffer.
+*/
 int readConfigurationFileBuffer(char * resultConfigurationBuffer)
 {
 	HANDLE hFile;
@@ -90,11 +86,9 @@ int readConfigurationFileBuffer(char * resultConfigurationBuffer)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Write the configuration file from some buffer.                                   *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Write the configuration file from some buffer.
+*/
 int writeConfigurationFileBuffer(char * configurationBuffer)
 {
 	HANDLE hFile;
@@ -128,11 +122,9 @@ int writeConfigurationFileBuffer(char * configurationBuffer)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Compare two buffers.                                                             *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Compare two buffers.
+*/
 bool compareKeys(const char * key1, const char * key2)
 {
 	const int key1_size = (unsigned)strlen(key1);
@@ -153,11 +145,9 @@ bool compareKeys(const char * key1, const char * key2)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Extract the value of a key if that key exists.                                   *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Extract the value of a key if that key exists.
+*/
 int extractValue(const char * configurationBuffer, const char * targetKey, char * resultValue, int resultValueArraySize)
 {
 	int tempIndex = 0;
@@ -179,11 +169,9 @@ int extractValue(const char * configurationBuffer, const char * targetKey, char 
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Return the index of a key if it exists.                                          *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Return the index of a key if it exists.
+*/
 int searchKeyIndex(const char * configurationBuffer, const char * targetKey)
 {
 	char * resultValueBuffer = (char*)malloc(sizeof(char) * FILE_BUFFER_SIZE);
@@ -253,11 +241,9 @@ int searchKeyIndex(const char * configurationBuffer, const char * targetKey)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Updates the value of the given key or add it if it doesn't exist.                *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Updates the value of the given key or add it if it doesn't exist.
+*/
 int addValue(const char * configurationBuffer, const char * targetKey, const char * value, char * resultConfigurationBuffer, int resultConfigurationBufferSize)
 {
 	const int key_size = (unsigned)strlen(targetKey);
@@ -338,11 +324,9 @@ int addValue(const char * configurationBuffer, const char * targetKey, const cha
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Prepare the buffer for file writing.                                             *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Prepare the buffer for file writing.
+*/
 void formatResultBuffer(char * configurationBuffer, char * resultConfigurationBuffer)
 {
 	int i = 0;
@@ -364,11 +348,9 @@ void formatResultBuffer(char * configurationBuffer, char * resultConfigurationBu
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	General read key from configuration file.                                        *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	General read key from configuration file.
+*/
 int getConfigurationValue(char * targetKey, char * resultValue, int resultValueBufferSize)
 {
 	char configurationFileBuffer[FILE_BUFFER_SIZE];
@@ -389,11 +371,9 @@ int getConfigurationValue(char * targetKey, char * resultValue, int resultValueB
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	General write key to configuration file.                                         *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	General write key to configuration file.
+*/
 int setConfigurationValue(const char * targetKey, const char * value)
 {
 	char configurationFileBuffer[FILE_BUFFER_SIZE];
