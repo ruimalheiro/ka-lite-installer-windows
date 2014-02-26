@@ -59,6 +59,10 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 [Dirs]
 Name: "{app}\"; Permissions: everyone-modify
 
+
+[InstallDelete]
+Type: Files; Name: "{app}\ka-lite\kalite\updates\utils.*"
+
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\ka-lite\python-packages"
 Type: filesandordirs; Name: "{app}\ka-lite\kalite\foo"
@@ -125,7 +129,7 @@ begin
    
   ShellExec('open','taskkill.exe','/F /T /im "KA Lite.exe"','',SW_HIDE,ewNoWait,killErrorCode)
   ShellExec('open','tskill.exe',' "KA Lite"','',SW_HIDE,ewNoWait,killErrorCode);
-  
+
   if RegDeleteValue(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', ExpandConstant('{#MyAppName}')) then
   begin
     
@@ -166,9 +170,10 @@ function InitializeUninstall(): Boolean;
 var
 ErrorCode: Integer;
 begin
-   ShellExec('open', 'taskkill.exe', '/F /T /im "KA Lite.exe"', '', SW_HIDE, ewNoWait, ErrorCode);
-   ShellExec('open', 'tskill.exe', '"KA Lite"', '', SW_HIDE, ewNoWait, ErrorCode);
-   result := True;
+  ShellExec('open', 'taskkill.exe', '/F /T /im "KA Lite.exe"', '', SW_HIDE, ewNoWait, ErrorCode);
+  ShellExec('open', 'tskill.exe', '"KA Lite"', '', SW_HIDE, ewNoWait, ErrorCode);
+  ShellExec('open', ExpandConstant('{app}') + '\ka-lite\stop.bat', '', '', SW_HIDE, ewNoWait, ErrorCode);
+  result := True;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -187,7 +192,7 @@ begin
   if CurStep = ssInstall then
   begin
     informationBoxFlagged :=False;
-      
+    ShellExec('open', ExpandConstant('{app}') + '\ka-lite\stop.bat', '', '', SW_HIDE, ewNoWait, StartupCode);
     if DirExists(ExpandConstant('{app}') + '\kalite') then
     begin
       MsgBox('KA Lite old data structure' #13#13 'Setup detected that you have the old file structure. Setup will now move data to update the structure. Please be patient; this may take some time.', mbInformation, MB_OK);
