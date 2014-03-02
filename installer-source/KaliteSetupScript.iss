@@ -235,7 +235,7 @@ begin
     existDatabase := False;
     if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
     begin
-      if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh, or keep the old database?' #13#13 'Choose "Yes" to delete or "No" to keep. (keep is recommended)', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
+      if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
       begin
         existDatabase := True;
       end
