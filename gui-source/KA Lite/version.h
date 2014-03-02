@@ -2,21 +2,17 @@
 #define version
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Functions declaration.                                                           *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Functions declaration.
+*/
 int getVersionFromFile(TCHAR * versionFinal);
 void setKALiteVersion(TCHAR * windowTitle, int windowTitleSize);
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	This function extracts KALite version from "version.py".                         *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	This function extracts KALite version from "version.py".
+*/
 int getVersionFromFile(TCHAR * versionFinal)
 {
 	HANDLE hFile;
@@ -84,11 +80,9 @@ int getVersionFromFile(TCHAR * versionFinal)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	This function sets the title of KA Lite window with the version.                 *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	This function sets the title of KA Lite window with the version.
+*/
 void setKALiteVersion(TCHAR * windowTitle, int windowTitleSize)
 {
 	TCHAR versionFinal[MAX_PATH] = {};

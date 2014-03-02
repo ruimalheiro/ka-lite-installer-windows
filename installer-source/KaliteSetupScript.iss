@@ -42,7 +42,7 @@ Source: "..\ka-lite\*"; DestDir: "{app}\ka-lite"; Flags: ignoreversion recursesu
 Source: "..\ka-lite\content\*"; DestDir: "{app}\ka-lite\content"; Flags: ignoreversion recursesubdirs createallsubdirs uninsneveruninstall
 Source: "..\ka-lite\kalite\database\*"; DestDir: "{app}\ka-lite\kalite\database"; Flags: ignoreversion recursesubdirs createallsubdirs uninsneveruninstall
 Source: "..\gui-packed\KA Lite.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\gui-packed\winshortcut.vbs"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\gui-packed\guitools.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\python-setup\*"; DestDir: "{app}\python-setup"; Flags: ignoreversion
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
@@ -235,7 +235,7 @@ begin
     existDatabase := False;
     if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
     begin
-      if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh, or keep the old database?' #13#13 'Choose "Yes" to delete or "No" to keep. (keep is recommended)', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
+      if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
       begin
         existDatabase := True;
       end
@@ -269,7 +269,7 @@ begin
       // stop changing here
       if UsagePage.SelectedValueIndex = 0 then
       begin
-        if ShellExec('open','winshortcut.vbs','0',ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
+        if ShellExec('open','guitools.vbs','0',ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
         begin
           if SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_STARTUP:TRUE;' + #13#10, False) then
           begin

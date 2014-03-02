@@ -12,11 +12,9 @@ NOTIFYICONDATA notifyIconData;
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Functions declaration.                                                           *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Functions declaration.
+*/
 void InitNotifyIconData(HWND hwnd, HINSTANCE hINSTANCE);
 void Minimize(HWND hwnd, char* title, char * message);
 void Restore(HWND hwnd);
@@ -25,11 +23,9 @@ void destroyTrayIcon();
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Inits the structure that will handle tray notification.                          *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Inits the structure that will handle tray notification.
+*/
 void InitNotifyIconData(HWND hwnd, HINSTANCE hINSTANCE)
 {
 	// Allocate memory for the structure.
@@ -73,11 +69,9 @@ void InitNotifyIconData(HWND hwnd, HINSTANCE hINSTANCE)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	This function minimize to tray showing a specific message and title.             *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	This function minimize to tray showing a specific message and title.
+*/
 void Minimize(HWND hwnd, char* title, char * message)
 {
 	// Add the icon to the system tray
@@ -98,11 +92,9 @@ void Minimize(HWND hwnd, char* title, char * message)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Restore the window.                                                              *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Restore the window.
+*/
 void Restore(HWND hwnd)
 {
 	// Show the main window
@@ -111,11 +103,9 @@ void Restore(HWND hwnd)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Show any message on tray.                                                        *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Show any message on tray.
+*/
 void sendTrayMessage(HWND hwnd, char* title, char * message)
 {
 	wchar_t  wtitle[100];
@@ -132,11 +122,9 @@ void sendTrayMessage(HWND hwnd, char* title, char * message)
 
 
 
-/*************************************************************************************
-*                                                                                    *
-*	Destroy the tray icon.                                                           *
-*                                                                                    *
-**************************************************************************************/
+/*
+*	Destroy the tray icon.
+*/
 void destroyTrayIcon()
 {
 	Shell_NotifyIcon(NIM_DELETE, &notifyIconData);
