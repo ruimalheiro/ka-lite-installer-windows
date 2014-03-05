@@ -187,12 +187,16 @@ var
   restoreContentFolder: integer;
   informationBoxFlagged: boolean;
   setupCommand: string;
+  stopServerCode: integer;
 begin
   
   if CurStep = ssInstall then
   begin
     informationBoxFlagged :=False;
-    ShellExec('open', ExpandConstant('{app}') + '\ka-lite\stop.bat', '', '', SW_HIDE, ewNoWait, StartupCode);
+    
+    Exec(ExpandConstant('{cmd}'),'/C ka-lite\stop.bat', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, stopServerCode);
+    Exec(ExpandConstant('{cmd}'),'/C del winshortcut.vbs', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, stopServerCode);
+    
     if DirExists(ExpandConstant('{app}') + '\kalite') then
     begin
       MsgBox('KA Lite old data structure' #13#13 'Setup detected that you have the old file structure. Setup will now move data to update the structure. Please be patient; this may take some time.', mbInformation, MB_OK);
