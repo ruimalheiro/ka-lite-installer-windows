@@ -195,7 +195,7 @@ begin
   begin
     informationBoxFlagged :=False;
     
-    Exec(ExpandConstant('{cmd}'),'/C ka-lite\stop.bat', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, stopServerCode);
+    Exec(ExpandConstant('{cmd}'),'/C ka-lite\scripts\stop.bat', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, stopServerCode);
     Exec(ExpandConstant('{cmd}'),'/C del winshortcut.vbs', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, removeOldGuiTool);
     
     if DirExists(ExpandConstant('{app}') + '\kalite') then
