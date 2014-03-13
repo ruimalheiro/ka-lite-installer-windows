@@ -189,6 +189,7 @@ var
   setupCommand: string;
   stopServerCode: integer;
   removeOldGuiTool: integer;
+  askAboutUpgrade: boolean;
 begin
   
   if CurStep = ssInstall then
@@ -240,14 +241,24 @@ begin
     existDatabase := False;
     if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
     begin
-      if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
+      askAboutUpgrade := True;
+      while askAboutUpgrade = True do
       begin
-        existDatabase := True;
+        if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
+        begin
+          askAboutUpgrade := False;
+          existDatabase := True;
+        end
+        else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        begin
+          askAboutUpgrade := False;
+          existDatabase := False;
+          if DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') = False then
+          begin
+            MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
+          end;
+        end
       end
-      else if DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
-      begin
-        MsgBox('Error' #13#13 'Failed to delete Django database.', mbError, MB_OK);
-      end;
     end;
   end;
 
