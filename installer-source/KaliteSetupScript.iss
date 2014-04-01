@@ -10,11 +10,9 @@
 
 #expr DeleteFile(SourcePath+"\version.temp")
 
+
 [Setup]
-; NOTE: The value of AppId uniquely identifies this application.
-; Do not use the same AppId value in installers for other applications.
-; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{75DA4F44-7F9C-4AD4-95CF-DF3BDD7F95B4}
+AppId={#MyAppName}-{#MyAppPublisher}
 AppName={#MyAppName}
 AppVersion={#MyVersion}
 AppPublisher={#MyAppPublisher}
@@ -30,6 +28,7 @@ SetupIconFile=logo48.ico
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
+UsePreviousAppDir=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -44,12 +43,10 @@ Source: "..\ka-lite\kalite\database\*"; DestDir: "{app}\ka-lite\kalite\database"
 Source: "..\gui-packed\KA Lite.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\gui-packed\guitools.vbs"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\python-setup\*"; DestDir: "{app}\python-setup"; Flags: ignoreversion
-; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:ProgramOnTheWeb,{#MyAppName}}"; Filename: "{#MyAppURL}"
-;Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "Uninstall KA Lite"
 Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
@@ -92,28 +89,96 @@ Type: Files; Name: "{app}\CONFIG.dat"
 [code]
 var
   installFlag : boolean;
-  startupFlag : String;
-  UserPage: TInputQueryWizardPage;
-  UsagePage: TInputOptionWizardPage;
+  startupFlag : string;
+  ServerInformationPage : TInputQueryWizardPage;
+  UserInformationPage : TInputQueryWizardPage;
+  StartupPage : TInputOptionWizardPage;
   existDatabase : boolean;
+  isUpgrade : boolean;
 
 procedure InitializeWizard;
 begin
 
-  UserPage := CreateInputQueryPage(wpLicense,
+    existDatabase := False;
+    isUpgrade := False;
+    
+    if WizardForm.PrevAppDir <> nil then
+    begin
+        if FileExists(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
+        begin
+            if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
+            begin
+                existDatabase := True;
+                isUpgrade := True;
+            end
+            else if Not DeleteFile(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
+            begin
+                MsgBox('Error' #13#13 'Failed to delete Django database.', mbError, MB_OK);
+            end;
+        end;
+    end;
+    
+    // Server data
+    ServerInformationPage := CreateInputQueryPage(wpLicense,
     'Server Information', 'General data',
     'Please specify the server name and a description, then click Next. (you can leave blank both fields if you want to use the default server name or if you do not want to insert a description)');
-  UserPage.Add('Server name:', False);
-  UserPage.Add('Server description:', False);
+    ServerInformationPage.Add('Server name:', False);
+    ServerInformationPage.Add('Server description:', False);
+    
+    // Admin user creation
+    UserInformationPage := CreateInputQueryPage(ServerInformationPage.ID,
+    'Admin Information', 'Create admin user',
+    'Please specify username and password to create an admin, then click Next.');
+    UserInformationPage.Add('Username:', False);
+    UserInformationPage.Add('Password:', True);
+    UserInformationPage.Add('Confirm Password:', True);
   
-  UsagePage := CreateInputOptionPage(UserPage.ID,
+    // Run at windows startup.
+    StartupPage := CreateInputOptionPage(UserInformationPage.ID,
     'Server Configuration', 'Startup configuration',
-    'Do you wish to set the KA Lite server to run in the background automatically when you start Windows?',
-    True, False);
-  UsagePage.Add('Yes');
-  UsagePage.Add('No');
-  UsagePage.SelectedValueIndex := 0;
-  
+    'Do you wish to set the KA Lite server to run in the background automatically when you start Windows?', True, False);
+    StartupPage.Add('Yes');
+    StartupPage.Add('No');
+    StartupPage.SelectedValueIndex := 1;
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+    result := False;
+    if isUpgrade = True then
+    begin
+        if PageID = ServerInformationPage.ID then
+        begin
+            result := True;
+        end;
+        if PageID = UserInformationPage.ID then
+        begin
+            result := True;
+        end;
+    end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+    result := True;
+    if CurPageID = UserInformationPage.ID then
+    begin
+        if UserInformationPage.Values[0] <> nil then
+        begin
+            if (UserInformationPage.Values[1] = UserInformationPage.Values[2]) And (UserInformationPage.Values[1] <> nil) And (UserInformationPage.Values[2] <> nil) then
+            begin
+                result := True;
+            end
+            else begin
+                MsgBox('Error' #13#13 'Invalid password or the password does not match on both fields.', mbError, MB_OK);
+                result := False;
+            end;
+        end
+        else begin
+            MsgBox('Error' #13#13 'Invalid username. You must enter a non empty username.', mbError, MB_OK);
+            result := False;
+        end;
+    end;
 end;
 
 function InitializeSetup(): Boolean;
@@ -122,47 +187,39 @@ var
   InstallPython: integer;
   killErrorCode: integer;
 begin
-  installFlag:=true;
-  Result := true;
-  startupFlag:=''; 
+    installFlag:=true;
+    Result := true;
+    startupFlag:=''; 
   
-   
-  ShellExec('open','taskkill.exe','/F /T /im "KA Lite.exe"','',SW_HIDE,ewNoWait,killErrorCode)
-  ShellExec('open','tskill.exe',' "KA Lite"','',SW_HIDE,ewNoWait,killErrorCode);
+    ShellExec('open','taskkill.exe','/F /T /im "KA Lite.exe"','',SW_HIDE,ewNoWait,killErrorCode)
+    ShellExec('open','tskill.exe',' "KA Lite"','',SW_HIDE,ewNoWait,killErrorCode);
 
-  if RegDeleteValue(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', ExpandConstant('{#MyAppName}')) then
-  begin
-    
-  end;
+    RegDeleteValue(HKCU, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run', ExpandConstant('{#MyAppName}'));
    
-  
-  if ShellExec('open', 'python.exe','-c "import sys; sys.version_info[0]==2 and sys.version_info[1] >= 6 and sys.exit(0) or sys.exit(1)"', '', SW_HIDE, ewWaitUntilTerminated, PythonVersionCodeCheck) then
+    if ShellExec('open', 'python.exe','-c "import sys; sys.version_info[0]==2 and sys.version_info[1] >= 6 and sys.exit(0) or sys.exit(1)"', '', SW_HIDE, ewWaitUntilTerminated, PythonVersionCodeCheck) then
     begin
-      if PythonVersionCodeCheck = 1 then
-      begin
-       if(MsgBox('Error' #13#13 'Python 2.6+ is required to run KA Lite; do you wish to first install Python 2.7.3, before continuing with the installation of KA Lite?', mbConfirmation, MB_YESNO) = idYes) then
-       begin
-         ExtractTemporaryFile('python-2.7.3.msi');
-         ShellExec('open', ExpandConstant('{tmp}')+'\python-2.7.3.msi', '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, InstallPython);  
-       end
-       else begin
-         MsgBox('Error' #13#13 'You must manually upgrade your Python version to version 2.6 or higher after the installation, before you can run KA Lite', mbInformation, MB_OK);
-       end;         
-      end
-      else begin
-         //MsgBox('Error' #13#13 'You must upgrade your Python version after the installation to run KA Lite.', mbInformation, MB_OK);
-      end;
+        if PythonVersionCodeCheck = 1 then
+        begin
+            if(MsgBox('Error' #13#13 'Python 2.6+ is required to run KA Lite; do you wish to first install Python 2.7.3, before continuing with the installation of KA Lite?', mbConfirmation, MB_YESNO) = idYes) then
+            begin
+            ExtractTemporaryFile('python-2.7.3.msi');
+            ShellExec('open', ExpandConstant('{tmp}')+'\python-2.7.3.msi', '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, InstallPython);  
+            end
+            else begin
+                MsgBox('Error' #13#13 'You must manually upgrade your Python version to version 2.6 or higher after the installation, before you can run KA Lite', mbInformation, MB_OK);
+            end;         
+        end;
     end
     else begin
-      if (MsgBox('Python' #13#13 'Python 2.6+ is required to run KA Lite; do you wish to first install Python 2.7.3, before continuing with the installation of KA Lite?', mbConfirmation, MB_YESNO) = idYes) then
-      begin
-        ExtractTemporaryFile('python-2.7.3.msi');
-        ShellExec('open', ExpandConstant('{tmp}')+'\python-2.7.3.msi', '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, InstallPython);
-      end
-      else begin
-         MsgBox('Error' #13#13 'You must have Python 2.6+ installed to proceed! Installation will now exit.', mbError, MB_OK);
-         Result := false;
-      end;
+        if (MsgBox('Python' #13#13 'Python 2.6+ is required to run KA Lite; do you wish to first install Python 2.7.3, before continuing with the installation of KA Lite?', mbConfirmation, MB_YESNO) = idYes) then
+        begin
+            ExtractTemporaryFile('python-2.7.3.msi');
+            ShellExec('open', ExpandConstant('{tmp}')+'\python-2.7.3.msi', '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, InstallPython);
+        end
+        else begin
+            MsgBox('Error' #13#13 'You must have Python 2.6+ installed to proceed! Installation will now exit.', mbError, MB_OK);
+            Result := false;
+        end;
     end;  
 end;
 
@@ -190,106 +247,80 @@ var
   stopServerCode: integer;
   removeOldGuiTool: integer;
 begin
-  
-  if CurStep = ssInstall then
-  begin
-    informationBoxFlagged :=False;
-    
-    Exec(ExpandConstant('{cmd}'),'/C ka-lite\scripts\stop.bat', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, stopServerCode);
-    Exec(ExpandConstant('{cmd}'),'/C del winshortcut.vbs', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, removeOldGuiTool);
-    
-    if DirExists(ExpandConstant('{app}') + '\kalite') then
+    if CurStep = ssInstall then
     begin
-      MsgBox('KA Lite old data structure' #13#13 'Setup detected that you have the old file structure. Setup will now move data to update the structure. Please be patient; this may take some time.', mbInformation, MB_OK);
-      informationBoxFlagged :=True;      
-      if Exec(ExpandConstant('{cmd}'),'/C mkdir '+ExpandConstant('{tmp}')+'\ka-lite\kalite & xcopy /y /s kalite\* '+ExpandConstant('{tmp}')+'\ka-lite\kalite', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, moveKaliteFolderTemp) then
-      begin
-      end;      
-    end; 
-      
-    if DirExists(ExpandConstant('{app}') + '\content') then
-    begin
-      if not informationBoxFlagged then
-      begin
-        MsgBox('KA Lite old data structure' #13#13 'Setup detected that you have the old file structure. Setup will now move data to update the structure. Please be patient; this may take some time.', mbInformation, MB_OK);
-        informationBoxFlagged :=True;
-      end;      
-      if Exec(ExpandConstant('{cmd}'),'/C mkdir '+ExpandConstant('{tmp}')+'\ka-lite\content & xcopy /y /s content\* '+ExpandConstant('{tmp}')+'\ka-lite\content', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, moveContentFolderTemp) then
-      begin
-      end;        
-    end;      
+        informationBoxFlagged :=False;
+        
+        Exec(ExpandConstant('{cmd}'),'/C ka-lite\scripts\stop.bat', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, stopServerCode);
+        Exec(ExpandConstant('{cmd}'),'/C del winshortcut.vbs', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, removeOldGuiTool);
     
-    if informationBoxFlagged then
-    begin
-      if Exec(ExpandConstant('{cmd}'),'/C cd .. & del /q "'+ExpandConstant('{app}')+'\*" & for /d %x in ( "'+ExpandConstant('{app}')+'\*" ) do @rd /s /q "%x"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, cleanKaliteFolder) then
-      begin
-      end;
-    
-    
-      if DirExists(ExpandConstant('{tmp}')+'\ka-lite\kalite') then
-      begin
-        Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\kalite & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\kalite\* ka-lite\kalite', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreKaliteFolder);
-      end;
-
-      if DirExists(ExpandConstant('{tmp}')+'\ka-lite\content') then
-      begin
-        Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\content & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\content\* ka-lite\content', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreContentFolder);
-      end;
-    end;
- 
-    existDatabase := False;
-    if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
-    begin
-      if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
-      begin
-        existDatabase := True;
-      end
-      else if DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
-      begin
-        MsgBox('Error' #13#13 'Failed to delete Django database.', mbError, MB_OK);
-      end;
-    end;
-  end;
-
-  if(CurStep=ssPostInstall) then
-  begin
-    if(installFlag) then
-    begin
-         
-      setupCommand := 'manage.py setup -o "'+UserPage.Values[0]+'" -d "'+UserPage.Values[1] + '"';
-      if (existDatabase) then begin
-          setupCommand := setupCommand + ' --noinput';
-      end;
-      
-      if not ShellExec('open', 'python.exe', setupCommand, ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
-      begin
-        MsgBox('Error' #13#13 'Failed to initialize database.', mbInformation, MB_OK);
-      end;    
-      
-      if not ShellExec('open', 'python.exe', 'manage.py videoscan', ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, ServerNameDescriptionCode) then
-      begin
-        MsgBox('Error' #13#13 'Failed to scan video files.', mbInformation, MB_OK);
-      end;    
-      
-      // stop changing here
-      if UsagePage.SelectedValueIndex = 0 then
-      begin
-        if ShellExec('open','guitools.vbs','0',ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
+        if DirExists(ExpandConstant('{app}') + '\kalite') then
         begin
-          if SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_STARTUP:TRUE;' + #13#10, False) then
-          begin
-          end
-          else begin
-            MsgBox('File Error' #13#13 'Failed to create config file.', mbError, MB_OK);
-          end;
-        end
-        else begin
-          MsgBox('Startup Error' #13#13 'Failed to add into startup folder.', mbError, MB_OK);
+            MsgBox('KA Lite old data structure' #13#13 'Setup detected that you have the old file structure. Setup will now move data to update the structure. Please be patient; this may take some time.', mbInformation, MB_OK);
+            informationBoxFlagged :=True;      
+            Exec(ExpandConstant('{cmd}'),'/C mkdir '+ExpandConstant('{tmp}')+'\ka-lite\kalite & xcopy /y /s kalite\* '+ExpandConstant('{tmp}')+'\ka-lite\kalite', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, moveKaliteFolderTemp);      
+        end; 
+      
+        if DirExists(ExpandConstant('{app}') + '\content') then
+        begin
+            if Not informationBoxFlagged then
+            begin
+                MsgBox('KA Lite old data structure' #13#13 'Setup detected that you have the old file structure. Setup will now move data to update the structure. Please be patient; this may take some time.', mbInformation, MB_OK);
+                informationBoxFlagged :=True;
+            end;      
+            Exec(ExpandConstant('{cmd}'),'/C mkdir '+ExpandConstant('{tmp}')+'\ka-lite\content & xcopy /y /s content\* '+ExpandConstant('{tmp}')+'\ka-lite\content', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, moveContentFolderTemp);      
         end;      
-      end
-      else begin      
-      end;
-          
+    
+        if informationBoxFlagged then
+        begin
+            Exec(ExpandConstant('{cmd}'),'/C cd .. & del /q "'+ExpandConstant('{app}')+'\*" & for /d %x in ( "'+ExpandConstant('{app}')+'\*" ) do @rd /s /q "%x"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, cleanKaliteFolder);
+    
+            if DirExists(ExpandConstant('{tmp}')+'\ka-lite\kalite') then
+            begin
+                Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\kalite & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\kalite\* ka-lite\kalite', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreKaliteFolder);
+            end;
+
+            if DirExists(ExpandConstant('{tmp}')+'\ka-lite\content') then
+            begin
+                Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\content & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\content\* ka-lite\content', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreContentFolder);
+            end;
+        end;
     end;
-  end;
+
+    if CurStep = ssPostInstall then
+    begin
+        if installFlag then
+        begin
+            setupCommand := 'manage.py setup --noinput -o "'+ServerInformationPage.Values[0]+'" -d "'+ServerInformationPage.Values[1]+'" -u "'+UserInformationPage.Values[0]+'" -p "'+UserInformationPage.Values[1]+'"';
+            if (existDatabase) then 
+            begin
+                setupCommand := setupCommand + ' --noinput';
+            end;
+      
+            if Not ShellExec('open', 'python.exe', setupCommand, ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
+            begin
+                MsgBox('Error' #13#13 'Failed to initialize database.', mbInformation, MB_OK);
+            end;    
+      
+            if Not ShellExec('open', 'python.exe', 'manage.py videoscan', ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, ServerNameDescriptionCode) then
+            begin
+                MsgBox('Error' #13#13 'Failed to scan video files.', mbInformation, MB_OK);
+            end;    
+      
+            if StartupPage.SelectedValueIndex = 0 then
+            begin
+                if ShellExec('open','guitools.vbs','0',ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
+                begin
+                    if Not SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_STARTUP:TRUE;' + #13#10, False) then
+                    begin
+                        MsgBox('File Error' #13#13 'Failed to create config file.', mbError, MB_OK);
+                    end;
+                end
+                else begin
+                    MsgBox('Startup Error' #13#13 'Failed to add into startup folder.', mbError, MB_OK);
+                end;      
+            end;      
+        end;
+    end;
+    
 end;
