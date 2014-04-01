@@ -246,6 +246,7 @@ var
   setupCommand: string;
   stopServerCode: integer;
   removeOldGuiTool: integer;
+  askAboutUpgrade: boolean;
 begin
     if CurStep = ssInstall then
     begin
