@@ -95,6 +95,8 @@ var
   StartupPage : TInputOptionWizardPage;
   existDatabase : boolean;
   isUpgrade : boolean;
+  stopServerCode: integer;
+  removeOldGuiTool: integer;
 
 procedure InitializeWizard;
 begin
@@ -104,18 +106,8 @@ begin
     
     if WizardForm.PrevAppDir <> nil then
     begin
-        if FileExists(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
-        begin
-            if MsgBox('A database file from a previous installation already exists; do you want to delete the old data and start fresh?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDNO then
-            begin
-                existDatabase := True;
-                isUpgrade := True;
-            end
-            else if Not DeleteFile(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
-            begin
-                MsgBox('Error' #13#13 'Failed to delete Django database.', mbError, MB_OK);
-            end;
-        end;
+        Exec(ExpandConstant('{cmd}'),'/C ka-lite\scripts\stop.bat', WizardForm.PrevAppDir, SW_HIDE, ewWaitUntilTerminated, stopServerCode);
+        Exec(ExpandConstant('{cmd}'),'/C del winshortcut.vbs', WizardForm.PrevAppDir, SW_HIDE, ewWaitUntilTerminated, removeOldGuiTool);
     end;
     
     // Server data
@@ -179,6 +171,32 @@ begin
             result := False;
         end;
     end;
+    
+    if CurPageID = wpLicense then
+    begin
+        if WizardForm.PrevAppDir <> nil then
+        begin
+            if FileExists(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
+            begin
+                if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
+                begin
+                    existDatabase := True;
+                    isUpgrade := True;
+                end
+                else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+                begin
+                    existDatabase := False;
+                    isUpgrade := False;
+                    if Not DeleteFile(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
+                    begin
+                        MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
+                    end;
+                end;
+            end;
+        end;
+    end;
+    
+    
 end;
 
 function InitializeSetup(): Boolean;
@@ -244,8 +262,6 @@ var
   restoreContentFolder: integer;
   informationBoxFlagged: boolean;
   setupCommand: string;
-  stopServerCode: integer;
-  removeOldGuiTool: integer;
   askAboutUpgrade: boolean;
 begin
     if CurStep = ssInstall then
@@ -286,6 +302,27 @@ begin
                 Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\content & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\content\* ka-lite\content', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreContentFolder);
             end;
         end;
+        
+        if Not existDatabase then
+        begin
+            if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
+            begin
+                if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
+                begin
+                    existDatabase := True;
+                    MsgBox('The data that you have entered during setup will be discarded in order to proceed with the update.', mbInformation, MB_OK);
+                end
+                else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+                begin
+                    existDatabase := False;
+                    if Not DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
+                    begin
+                        MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
+                    end;
+                end;
+            end;
+        end;
+        
     end;
 
     if CurStep = ssPostInstall then
@@ -293,12 +330,14 @@ begin
         if installFlag then
         begin
             setupCommand := 'manage.py setup --noinput -o "'+ServerInformationPage.Values[0]+'" -d "'+ServerInformationPage.Values[1]+'" -u "'+UserInformationPage.Values[0]+'" -p "'+UserInformationPage.Values[1]+'"';
-            if (existDatabase) then 
+            if existDatabase then 
             begin
                 setupCommand := setupCommand + ' --noinput';
             end;
+            
+            MsgBox('Setup will now configure the database. This operation may take a few minutes. Please be patient.', mbInformation, MB_OK);
       
-            if Not ShellExec('open', 'python.exe', setupCommand, ExpandConstant('{app}')+'\ka-lite\kalite', SW_SHOWNORMAL, ewWaitUntilTerminated, ServerNameDescriptionCode) then
+            if Not ShellExec('open', 'python.exe', setupCommand, ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, ServerNameDescriptionCode) then
             begin
                 MsgBox('Error' #13#13 'Failed to initialize database.', mbInformation, MB_OK);
             end;    
