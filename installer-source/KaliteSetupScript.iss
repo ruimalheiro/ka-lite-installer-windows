@@ -29,8 +29,6 @@ Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
 UsePreviousAppDir=yes
-CreateUninstallRegKey=no
-UpdateUninstallLogAppName=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -99,6 +97,7 @@ var
   isUpgrade : boolean;
   stopServerCode: integer;
   removeOldGuiTool: integer;
+  uninstallError: integer;
 
 procedure InitializeWizard;
 begin
@@ -113,7 +112,7 @@ begin
     end;
     
     // Server data
-    ServerInformationPage := CreateInputQueryPage(wpLicense,
+    ServerInformationPage := CreateInputQueryPage(wpSelectDir,
     'Server Information', 'General data',
     'Please specify the server name and a description, then click Next. (you can leave blank both fields if you want to use the default server name or if you do not want to insert a description)');
     ServerInformationPage.Add('Server name:', False);
@@ -130,10 +129,11 @@ begin
     // Run at windows startup.
     StartupPage := CreateInputOptionPage(UserInformationPage.ID,
     'Server Configuration', 'Startup configuration',
-    'Do you wish to set the KA Lite server to run in the background automatically when you start Windows?', True, False);
-    StartupPage.Add('Yes');
-    StartupPage.Add('No');
-    StartupPage.SelectedValueIndex := 1;
+    'The server can run automatically. You may choose one of the following options:', True, False);
+    StartupPage.Add('Run the server at windows startup;');
+    StartupPage.Add('Run the server when this user logs in;');
+    StartupPage.Add('None;');
+    StartupPage.SelectedValueIndex := 2;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -146,6 +146,10 @@ begin
             result := True;
         end;
         if PageID = UserInformationPage.ID then
+        begin
+            result := True;
+        end;
+        if PageID = wpSelectDir then
         begin
             result := True;
         end;
@@ -198,7 +202,32 @@ begin
         end;
     end;
     
-    
+    if CurPageID = wpSelectDir then
+    begin
+        if Not existDatabase and Not isUpgrade then
+        begin
+            if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
+            begin
+                if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
+                begin
+                    existDatabase := True;
+                    isUpgrade := True;
+                    MsgBox('Your version of KA Lite is using a different data structure, we will have to uninstall it in order to update properly. Click OK to start the uninstall process.', mbInformation, MB_OK);
+                    ShellExec('open', ExpandConstant('{app}')+'\unins000.exe', '/SILENT /SUPPRESSMSGBOXES', '', SW_SHOWNORMAL, ewWaitUntilTerminated, uninstallError);
+                end
+                else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+                begin
+                    existDatabase := False;
+                    isUpgrade := False;
+                    if Not DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
+                    begin
+                        MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
+                    end;
+                end;
+            end;
+        end; 
+    end;
+  
 end;
 
 function InitializeSetup(): Boolean;
@@ -264,8 +293,6 @@ var
   restoreContentFolder: integer;
   informationBoxFlagged: boolean;
   setupCommand: string;
-  askAboutUpgrade: boolean;
-  uninstallError: integer;
   
 begin
     if CurStep = ssInstall then
@@ -307,27 +334,6 @@ begin
             end;
         end;
         
-        if Not existDatabase then
-        begin
-            if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
-            begin
-                if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
-                begin
-                    existDatabase := True;
-                    MsgBox('The data that you have entered during setup will be discarded in order to proceed with the update. Your version of KA Lite is using a different structure, we will have to uninstall it in order to update properly. Please be patient.', mbInformation, MB_OK);
-                    ShellExec('open', ExpandConstant('{app}')+'\unins000.exe', '/SILENT /VERYSILENT /SUPPRESSMSGBOXES', '', SW_SHOWNORMAL, ewWaitUntilTerminated, uninstallError);
-                end
-                else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
-                begin
-                    existDatabase := False;
-                    if Not DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
-                    begin
-                        MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
-                    end;
-                end;
-            end;
-        end;
-        
     end;
 
     if CurStep = ssPostInstall then
@@ -354,7 +360,7 @@ begin
       
             if StartupPage.SelectedValueIndex = 0 then
             begin
-                if ShellExec('open','guitools.vbs','0',ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
+                if ShellExec('open','guitools.vbs','4', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
                 begin
                     if Not SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_STARTUP:TRUE;' + #13#10, False) then
                     begin
@@ -362,9 +368,22 @@ begin
                     end;
                 end
                 else begin
-                    MsgBox('Startup Error' #13#13 'Failed to add into startup folder.', mbError, MB_OK);
+                    MsgBox('Startup Error' #13#13 'Failed to register the task to run at startup.', mbError, MB_OK);
                 end;      
-            end;      
+            end
+            else if StartupPage.SelectedValueIndex = 1 then
+            begin
+                if ShellExec('open', 'guitools.vbs', '0', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, StartupCode) then
+                begin
+                    if Not SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_USER_LOGIN:TRUE;' + #13#10, False) then
+                    begin
+                        MsgBox('File Error' #13#13 'Failed to create config file.', mbError, MB_OK);
+                    end;
+                end
+                else begin
+                    MsgBox('Startup Error' #13#13 'Failed to add into startup folder.', mbError, MB_OK);
+                end;
+            end;
         end;
     end;
     
