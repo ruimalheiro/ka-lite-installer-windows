@@ -438,7 +438,7 @@ void CheckMenus()
 	else
 	{
 		enabledTrayMenuButtons(TRAY_ENABLED, TRAY_DISABLED, TRAY_ENABLED, TRAY_ENABLED);
-		enabledMainWindowButtons(TRUE, FALSE);
+		enabledMainWindowButtons(TRUE, FALSE);	
 		hMenu = CreatePopupMenu();
 		refreshServerStateTrayMenuText(L"Start server", L"Open KA Lite", L"Restore window", L"Exit KA Lite");
 		refreshMainWindowStartStopButtonText(L"Start server");	
@@ -483,21 +483,38 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	CheckMenus();
 
-	if (NEEDTOCHECK)
+	if (SERVERISRUNNING)
 	{
-		isServerOnlineThread();
-
-		DWORD dwWaitResult = WaitForSingleObject(ghMutex, INFINITE);
-
-		if (SERVERISONLINE)
+		if (NEEDTOCHECK)
 		{
-			NEEDTOCHECK = FALSE;
-		}
+			isServerOnlineThread();
 
-		if (!ReleaseMutex(ghMutex)) 
-        { 
-			MessageBox(NULL, L"Failed to release the Mutex", L"Error",MB_ICONEXCLAMATION | MB_OK);
-        }
+			DWORD dwWaitResult = WaitForSingleObject(ghMutex, INFINITE);
+
+			switch (dwWaitResult) 
+			{
+				case WAIT_OBJECT_0: 
+					__try 
+					{ 
+						if (SERVERISONLINE)
+						{
+							NEEDTOCHECK = FALSE;
+						}
+					} 
+			
+					__finally
+					{ 
+						if (!ReleaseMutex(ghMutex)) 
+						{ 
+							MessageBox(NULL, L"Failed to release the Mutex", L"Error",MB_ICONEXCLAMATION | MB_OK);
+						} 
+					} 
+					break; 
+
+				case WAIT_ABANDONED:
+					break; 
+			}
+		}
 	}
 
 	if( msg==WM_TASKBARCREATED && !IsWindowVisible(hwnd))
@@ -644,13 +661,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				stopServerCommand(0);
 				CHANGEDSTATE = true;
 				NEEDTOCHECK = FALSE;
-				SERVERISONLINE = FALSE;
+				SERVERISONLINE = FALSE;	
 			} 
 			else 
 			{
 				startServerCommand();
 				CHANGEDSTATE = true;
-				NEEDTOCHECK = TRUE;
+				NEEDTOCHECK = TRUE;	
 			}				
 			break;
 
@@ -822,13 +839,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 						stopServerCommand(0);
 						CHANGEDSTATE = true;
 						NEEDTOCHECK = FALSE;
-						SERVERISONLINE = FALSE;	
+						SERVERISONLINE = FALSE;
 					}
 					else 
 					{
 						startServerCommand();
 						CHANGEDSTATE = true;
-						NEEDTOCHECK = TRUE;
+						NEEDTOCHECK = TRUE;	
 					}
 				}
 
@@ -922,12 +939,16 @@ HWND GetRunningWindow()
 */
 DWORD WINAPI isServerOnline(LPVOID lpParam)
 {
-	UNREFERENCED_PARAMETER(lpParam); 
+	UNREFERENCED_PARAMETER(lpParam);
 
-	HINTERNET hSession = InternetOpen(L"Utility", 0,NULL, NULL, 0);
-	HINTERNET hOpenUrl = InternetOpenUrl(hSession,L"http://127.0.0.1:8008/", NULL,0, 1, 1);
+	HINTERNET hSession = InternetOpen(L"Check KA Lite Server", 0,NULL, NULL, 0);
+	HINTERNET hOpenUrl = InternetOpenUrl(hSession,L"http://127.0.0.1:8008/", NULL,0, INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_PRAGMA_NOCACHE, 1);
 
 	if( hOpenUrl == NULL){
+
+		InternetCloseHandle(hOpenUrl);
+		InternetCloseHandle(hSession);
+
 		return 1;
 	}
 
@@ -1000,8 +1021,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		return FALSE; // Exit program
 	}
 
-	TCHAR windowTitle[30] = {};
-	setKALiteVersion(windowTitle,30);
+	//Deprecated.
+	//TCHAR windowTitle[30] = {};
+	//setKALiteVersion(windowTitle,30);
 
 	CHANGEDSTATE = FALSE;
 	SERVERISRUNNING = FALSE;
@@ -1048,7 +1070,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// Creating the window.
 	DWORD windowStyle = WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU| CS_NOCLOSE;
-	hwnd = CreateWindowEx(NULL, className, windowTitle, windowStyle , CW_USEDEFAULT, CW_USEDEFAULT, 275, 170, NULL,  NULL, hInstance, NULL);	
+	hwnd = CreateWindowEx(NULL, className, L"KA Lite - 0.11.1", windowStyle , CW_USEDEFAULT, CW_USEDEFAULT, 275, 170, NULL,  NULL, hInstance, NULL);	
 
 	if(hwnd == NULL){
 		MessageBox(NULL, L"Failed to create the window.", L"Error",MB_ICONEXCLAMATION | MB_OK);
