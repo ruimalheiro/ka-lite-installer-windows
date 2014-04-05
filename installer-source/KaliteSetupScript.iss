@@ -29,7 +29,8 @@ Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=admin
 UsePreviousAppDir=yes
-
+CreateUninstallRegKey=no
+UpdateUninstallLogAppName=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

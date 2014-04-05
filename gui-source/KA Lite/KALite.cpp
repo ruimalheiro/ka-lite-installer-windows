@@ -6,6 +6,10 @@
 #include "traynotification.h"
 #include "Shlwapi.h"
 
+#include "wininet.h"
+
+#pragma comment(lib, "Wininet")
+
 using namespace std;
 
 // Window Menu ID's
@@ -94,6 +98,8 @@ UINT RUN_AT_USER_LOGIN_CHECK_STATE;
 // Control flags.
 bool SERVERISRUNNING;
 bool CHANGEDSTATE;
+bool SERVERISONLINE;
+bool NEEDTOCHECK;
 
 // winshortcut script return value.
 DWORD winshortcutReturn;
@@ -130,6 +136,7 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 HWND GetRunningWindow();
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow);
+bool isServerOnline();
 
 
 
@@ -410,8 +417,17 @@ void CheckMenus()
 {
 	if(SERVERISRUNNING)
 	{
-		enabledTrayMenuButtons(TRAY_ENABLED, TRAY_ENABLED, TRAY_ENABLED, TRAY_ENABLED);
-		enabledMainWindowButtons(TRUE, TRUE);
+		if(SERVERISONLINE)
+		{
+			enabledTrayMenuButtons(TRAY_ENABLED, TRAY_ENABLED, TRAY_ENABLED, TRAY_ENABLED);
+			enabledMainWindowButtons(TRUE, TRUE);
+		}
+		else
+		{
+			enabledTrayMenuButtons(TRAY_ENABLED, TRAY_DISABLED, TRAY_ENABLED, TRAY_ENABLED);
+			enabledMainWindowButtons(TRUE, FALSE);
+		}
+		
 		hMenu = CreatePopupMenu();
 		refreshServerStateTrayMenuText(L"Stop server", L"Open KA Lite", L"Restore window", L"Exit KA Lite");
 		refreshMainWindowStartStopButtonText(L"Stop server");	
@@ -461,6 +477,17 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM 
 */
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+	if (NEEDTOCHECK)
+	{
+		if(isServerOnline())
+		{
+			SERVERISONLINE = TRUE;
+			NEEDTOCHECK = FALSE;
+		}
+	}
+	printf("%d", NEEDTOCHECK);
+
 	CheckMenus();
 
 	if( msg==WM_TASKBARCREATED && !IsWindowVisible(hwnd))
@@ -622,6 +649,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				startServerCommand();
 				CHANGEDSTATE = true;
+				NEEDTOCHECK = TRUE;
 			}				
 			break;
 
@@ -789,6 +817,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				if(clicked == ID_TRAY_START_CONTEXT_MENU_ITEM)
 				{
 					startServerCommand();
+					NEEDTOCHECK = TRUE;
 				}
 
 				// Stop the server.
@@ -897,6 +926,26 @@ HWND GetRunningWindow()
 
 
 /*
+*	This function checks if the server is online.
+*/
+bool isServerOnline()
+{
+	HINTERNET hSession = InternetOpen(L"Utility", 0,NULL, NULL, 0);
+	HINTERNET hOpenUrl = InternetOpenUrl(hSession,L"http://127.0.0.1:8008/", NULL,0, 1, 1);
+
+	if( hOpenUrl == NULL){
+		return false;
+	}
+
+	InternetCloseHandle(hOpenUrl);
+	InternetCloseHandle(hSession);
+
+	return true;
+}
+
+
+
+/*
 *	This is the main application window.
 */
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow){
@@ -919,7 +968,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	setKALiteVersion(windowTitle,30);
 
 	CHANGEDSTATE = FALSE;
-	SERVERISRUNNING = FALSE;	
+	SERVERISRUNNING = FALSE;
+	SERVERISONLINE = FALSE;
+	NEEDTOCHECK = FALSE;
 
 	WM_TASKBARCREATED = RegisterWindowMessageA("TaskbarCreated");
 
