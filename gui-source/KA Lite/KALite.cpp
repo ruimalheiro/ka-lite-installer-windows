@@ -8,6 +8,9 @@
 
 #include "wininet.h"
 
+#include <tchar.h>
+#include <strsafe.h>
+
 #pragma comment(lib, "Wininet")
 
 using namespace std;
@@ -22,16 +25,12 @@ using namespace std;
 #define ID_OPTIONS_RUNUSERLOGIN 9007
 
 // Main Buttons ID's.
-#define ID_START_BUTTON 1001
-#define ID_STOP_BUTTON 1002
 #define ID_MINIMIZE_BUTTON 1003
 #define ID_OPEN_IN_BROWSER 1004
 #define ID_START_STOP_BUTTON 1005
 
 // Tray Menu options ID.
 #define ID_TRAY_EXIT_CONTEXT_MENU_ITEM  3000
-#define ID_TRAY_START_CONTEXT_MENU_ITEM 3001
-#define ID_TRAY_STOP_CONTEXT_MENU_ITEM 3002
 #define ID_TRAY_BROWSER_CONTEXT_MENU_ITEM 3003
 #define ID_TRAY_RESTORE_CONTEXT_MENU_ITEM 3004
 #define ID_TRAY_START_STOP_CONTEXT_MENU_ITEM 3005
@@ -101,6 +100,9 @@ bool CHANGEDSTATE;
 bool SERVERISONLINE;
 bool NEEDTOCHECK;
 
+// Mutex handle;
+HANDLE ghMutex;
+
 // winshortcut script return value.
 DWORD winshortcutReturn;
 
@@ -136,7 +138,8 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 HWND GetRunningWindow();
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow);
-bool isServerOnline();
+DWORD WINAPI isServerOnline(LPVOID lpParam);
+void isServerOnlineThread();
 
 
 
@@ -325,7 +328,7 @@ void startServerCommand()
 	if(ShellExecuteEx(&startServerShellExecuteInfo))
 	{
 		SERVERISRUNNING = TRUE;
-		sendTrayMessage(hwnd, "KA Lite is running", "The server should now be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"");
+		sendTrayMessage(hwnd, "KA Lite is running", "The server will be accessible locally at: http://127.0.0.1:8008/ or you can press \"Open KA Lite button\"");
 	}
 	else
 	{
@@ -424,8 +427,8 @@ void CheckMenus()
 		}
 		else
 		{
-			enabledTrayMenuButtons(TRAY_ENABLED, TRAY_DISABLED, TRAY_ENABLED, TRAY_ENABLED);
-			enabledMainWindowButtons(TRUE, FALSE);
+			enabledTrayMenuButtons(TRAY_DISABLED, TRAY_DISABLED, TRAY_ENABLED, TRAY_ENABLED);
+			enabledMainWindowButtons(FALSE, FALSE);
 		}
 		
 		hMenu = CreatePopupMenu();
@@ -478,17 +481,24 @@ LRESULT CALLBACK AboutDialogProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 
+	CheckMenus();
+
 	if (NEEDTOCHECK)
 	{
-		if(isServerOnline())
+		isServerOnlineThread();
+
+		DWORD dwWaitResult = WaitForSingleObject(ghMutex, INFINITE);
+
+		if (SERVERISONLINE)
 		{
-			SERVERISONLINE = TRUE;
 			NEEDTOCHECK = FALSE;
 		}
-	}
-	printf("%d", NEEDTOCHECK);
 
-	CheckMenus();
+		if (!ReleaseMutex(ghMutex)) 
+        { 
+			MessageBox(NULL, L"Failed to release the Mutex", L"Error",MB_ICONEXCLAMATION | MB_OK);
+        }
+	}
 
 	if( msg==WM_TASKBARCREATED && !IsWindowVisible(hwnd))
 	{
@@ -627,23 +637,14 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_COMMAND:
 		switch(LOWORD(wParam))
 		{
-		case ID_START_BUTTON:
-			{
-				startServerCommand();
-			}
-			break;
-
-		case ID_STOP_BUTTON:
-			{
-				stopServerCommand(0);
-			}
-			break;
 
 		case ID_START_STOP_BUTTON:
 			if(SERVERISRUNNING)
 			{
 				stopServerCommand(0);
 				CHANGEDSTATE = true;
+				NEEDTOCHECK = FALSE;
+				SERVERISONLINE = FALSE;
 			} 
 			else 
 			{
@@ -813,30 +814,21 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					}
 				} 
 
-				// Starts the server.
-				if(clicked == ID_TRAY_START_CONTEXT_MENU_ITEM)
-				{
-					startServerCommand();
-					NEEDTOCHECK = TRUE;
-				}
-
-				// Stop the server.
-				if(clicked == ID_TRAY_STOP_CONTEXT_MENU_ITEM)
-				{
-					stopServerCommand(0);
-				}
-
+				// Starts and stops the server.
 				if(clicked == ID_TRAY_START_STOP_CONTEXT_MENU_ITEM)
 				{
 					if(SERVERISRUNNING)
 					{
 						stopServerCommand(0);
 						CHANGEDSTATE = true;
+						NEEDTOCHECK = FALSE;
+						SERVERISONLINE = FALSE;	
 					}
 					else 
 					{
 						startServerCommand();
 						CHANGEDSTATE = true;
+						NEEDTOCHECK = TRUE;
 					}
 				}
 
@@ -928,19 +920,63 @@ HWND GetRunningWindow()
 /*
 *	This function checks if the server is online.
 */
-bool isServerOnline()
+DWORD WINAPI isServerOnline(LPVOID lpParam)
 {
+	UNREFERENCED_PARAMETER(lpParam); 
+
 	HINTERNET hSession = InternetOpen(L"Utility", 0,NULL, NULL, 0);
 	HINTERNET hOpenUrl = InternetOpenUrl(hSession,L"http://127.0.0.1:8008/", NULL,0, 1, 1);
 
 	if( hOpenUrl == NULL){
-		return false;
+		return 1;
 	}
 
 	InternetCloseHandle(hOpenUrl);
 	InternetCloseHandle(hSession);
 
-	return true;
+	DWORD dwWaitResult = WaitForSingleObject(ghMutex, INFINITE); 
+ 
+    switch (dwWaitResult) 
+    {
+        case WAIT_OBJECT_0: 
+            __try 
+			{ 
+                SERVERISONLINE = TRUE;
+            } 
+			
+			__finally
+			{ 
+				if (!ReleaseMutex(ghMutex)) 
+                { 
+                    MessageBox(NULL, L"Failed to release the Mutex", L"Error",MB_ICONEXCLAMATION | MB_OK);
+                } 
+            } 
+            break; 
+
+        case WAIT_ABANDONED:
+			return 1; 
+    }
+
+	return 0;
+}
+
+
+
+/*
+*	This function calls isServerOnline() in a thread.
+*/
+void isServerOnlineThread()
+{
+	DWORD dwThreadId;
+	HANDLE hThreadArray[1];
+	hThreadArray[0] = CreateThread( 
+            NULL,                 
+            0,                      
+            isServerOnline,      
+            NULL,         
+            0,             
+            &dwThreadId);
+	CloseHandle(hThreadArray[0]);
 }
 
 
@@ -972,6 +1008,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SERVERISONLINE = FALSE;
 	NEEDTOCHECK = FALSE;
 
+	ghMutex = CreateMutex(NULL, FALSE, NULL);
+
+	if(ghMutex == NULL)
+	{
+		MessageBox(NULL, L"Failed to create MUTEX.", L"Error", MB_ICONEXCLAMATION | MB_OK);
+		return 1;
+	}
+
 	WM_TASKBARCREATED = RegisterWindowMessageA("TaskbarCreated");
 
 	hINSTANCE = hInstance;
@@ -993,7 +1037,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	if(!RegisterClassEx(&wc)){
 		MessageBox(NULL, L"Failed to register the window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
-		return 0;
+		return 1;
 	}
 
 	loadConfigurations();
@@ -1008,7 +1052,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	if(hwnd == NULL){
 		MessageBox(NULL, L"Failed to create the window.", L"Error",MB_ICONEXCLAMATION | MB_OK);
-		return 0;
+		return 1;
 	}
 
 	// Disables MINIMIZE and MAXIMIZE Buttons
