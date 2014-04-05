@@ -30,6 +30,7 @@ SolidCompression=yes
 PrivilegesRequired=admin
 UsePreviousAppDir=yes
 
+
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
@@ -263,6 +264,8 @@ var
   informationBoxFlagged: boolean;
   setupCommand: string;
   askAboutUpgrade: boolean;
+  uninstallError: integer;
+  
 begin
     if CurStep = ssInstall then
     begin
@@ -310,7 +313,8 @@ begin
                 if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
                 begin
                     existDatabase := True;
-                    MsgBox('The data that you have entered during setup will be discarded in order to proceed with the update.', mbInformation, MB_OK);
+                    MsgBox('The data that you have entered during setup will be discarded in order to proceed with the update. Your version of KA Lite is using a different structure, we will have to uninstall it in order to update properly. Please be patient.', mbInformation, MB_OK);
+                    ShellExec('open', ExpandConstant('{app}')+'\unins000.exe', '/SILENT /VERYSILENT /SUPPRESSMSGBOXES', '', SW_SHOWNORMAL, ewWaitUntilTerminated, uninstallError);
                 end
                 else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
                 begin
