@@ -183,6 +183,8 @@ begin
     
     if CurPageID = wpLicense then
     begin
+        existDatabase := False;
+        isUpgrade := False;
         if WizardForm.PrevAppDir <> nil then
         begin
             if FileExists(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
@@ -200,6 +202,11 @@ begin
                     begin
                         MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
                     end;
+                end
+                else
+                begin
+                    existDatabase := True;
+                    isUpgrade := True;
                 end;
             end;
         end;
@@ -238,6 +245,11 @@ begin
                     begin
                         MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
                     end;
+                end
+                else
+                begin
+                    existDatabase := True;
+                    isUpgrade := True;
                 end;
             end;
         end; 
