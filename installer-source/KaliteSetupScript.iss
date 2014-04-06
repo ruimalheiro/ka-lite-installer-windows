@@ -98,6 +98,9 @@ var
   stopServerCode: integer;
   removeOldGuiTool: integer;
   uninstallError: integer;
+  saveDatabaseTemp : integer;
+  cleanOldKaliteFolder : integer;
+  restoreDatabaseTemp : integer;
 
 procedure InitializeWizard;
 begin
@@ -213,7 +216,19 @@ begin
                     existDatabase := True;
                     isUpgrade := True;
                     MsgBox('Your version of KA Lite is using a different data structure, we will have to uninstall it in order to update properly. Click OK to start the uninstall process.', mbInformation, MB_OK);
-                    ShellExec('open', ExpandConstant('{app}')+'\unins000.exe', '/SILENT /SUPPRESSMSGBOXES', '', SW_SHOWNORMAL, ewWaitUntilTerminated, uninstallError);
+                    if Not Exec(ExpandConstant('{cmd}'),'/C ( dir /b "unins***.exe" | findstr /r "unins[0-9][0-9][0-9].exe" ) > tempu & ( for /f "delims=" %A in ( tempu ) do start %A /SILENT /SUPPRESSMSGBOXES ) & del tempu', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, uninstallError) then
+                    begin
+                        if MsgBox('We could not find and run the old installation uninstaller which means that your old installation may be corrupted. We can still proceed with the upgrade and save your database. However it is recommended to delete all windows registry keys related with the old installation. Do you want to proceed?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+                        begin
+                            Exec(ExpandConstant('{cmd}'),'/C mkdir '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database & xcopy /y /s ka-lite\kalite\database\data.sqlite '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, saveDatabaseTemp);
+                            Exec(ExpandConstant('{cmd}'),'/C cd .. & del /q "'+ExpandConstant('{app}')+'\*" & for /d %x in ( "'+ExpandConstant('{app}')+'\*" ) do @rd /s /q "%x"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, cleanOldKaliteFolder);
+                            Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\kalite\database & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database\data.sqlite ka-lite\kalite\database', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreDatabaseTemp);
+                        end
+                        else
+                        begin
+                            MsgBox('We will try to proceed with the installation over your old KA Lite installation.', mbInformation, MB_OK);
+                        end;
+                    end;                   
                 end
                 else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
                 begin
