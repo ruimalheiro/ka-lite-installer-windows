@@ -189,7 +189,7 @@ begin
         begin
             if FileExists(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
             begin
-                if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
+                if MsgBox('We have detected an existing KA Lite installation; would you like to upgrade?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
                 begin
                     existDatabase := True;
                     isUpgrade := True;
@@ -218,7 +218,7 @@ begin
         begin
             if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
             begin
-                if MsgBox('A database file from a previous installation already exists; do you want to keep the old data and upgrade your install?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
+                if MsgBox('We have detected an existing KA Lite installation; would you like to upgrade?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
                 begin
                     existDatabase := True;
                     isUpgrade := True;
