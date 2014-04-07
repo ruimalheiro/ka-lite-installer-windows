@@ -176,7 +176,7 @@ begin
             end;
         end
         else begin
-            MsgBox('Error' #13#13 'Invalid username. You must enter a non empty username.', mbError, MB_OK);
+            MsgBox('Error' #13#13 'Invalid username. You must enter a non-empty username.', mbError, MB_OK);
             result := False;
         end;
     end;
@@ -194,7 +194,7 @@ begin
                     existDatabase := True;
                     isUpgrade := True;
                 end
-                else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+                else if MsgBox('Installing fresh will delete all of your existing data; is this what you really want to do?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
                 begin
                     existDatabase := False;
                     isUpgrade := False;
@@ -237,7 +237,7 @@ begin
                         end;
                     end;                   
                 end
-                else if MsgBox('Installing fresh will delete all your own data; do you really want to do this?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+                else if MsgBox('Installing fresh will delete all of your existing data; is this what you really want to do?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
                 begin
                     existDatabase := False;
                     isUpgrade := False;
