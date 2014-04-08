@@ -101,12 +101,14 @@ var
   saveDatabaseTemp : integer;
   cleanOldKaliteFolder : integer;
   restoreDatabaseTemp : integer;
+  forceCancel : boolean;
 
 procedure InitializeWizard;
 begin
 
     existDatabase := False;
     isUpgrade := False;
+    forceCancel := False;
     
     if WizardForm.PrevAppDir <> nil then
     begin
@@ -137,6 +139,14 @@ begin
     StartupPage.Add('Run the server when this user logs in');
     StartupPage.Add('Do not run the server at startup.');
     StartupPage.SelectedValueIndex := 2;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  if forceCancel = True then
+  begin
+    Confirm := False;
+  end;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
@@ -201,6 +211,7 @@ begin
                     if Not DeleteFile(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
                     begin
                         MsgBox('Error' #13#13 'Failed to delete the old database as requested; aborting the install.', mbError, MB_OK);
+                        forceCancel := True;
                         WizardForm.Close;
                     end;
                 end
@@ -237,6 +248,7 @@ begin
                     if Not DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
                     begin
                         MsgBox('Error' #13#13 'Failed to delete the old database as requested; aborting the install.', mbError, MB_OK);
+                        forceCancel := True;
                         WizardForm.Close;
                     end;
                 end
@@ -277,6 +289,7 @@ begin
             end
             else begin
                 MsgBox('Error' #13#13 'You must have Python 2.6+ installed to proceed! Installation will now exit.', mbError, MB_OK);
+                forceCancel := True;
                 WizardForm.Close;
             end;         
         end;
@@ -289,7 +302,8 @@ begin
         end
         else begin
             MsgBox('Error' #13#13 'You must have Python 2.6+ installed to proceed! Installation will now exit.', mbError, MB_OK);
-            Result := false;
+            forceCancel := True;
+            WizardForm.Close;
         end;
     end;  
 end;
