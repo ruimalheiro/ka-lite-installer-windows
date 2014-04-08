@@ -105,7 +105,6 @@ var
 
 procedure InitializeWizard;
 begin
-
     existDatabase := False;
     isUpgrade := False;
     forceCancel := False;
@@ -169,9 +168,47 @@ begin
     end;
 end;
 
+procedure HandleExistentDatabase(isOldInstallation : Boolean; targetPath : String);
+begin 
+    if FileExists(targetPath + '\ka-lite\kalite\database\data.sqlite') then
+    begin           
+        if MsgBox('We have detected an existing KA Lite installation; would you like to upgrade?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
+        begin        
+            existDatabase := True;
+            isUpgrade := True;           
+            if isOldInstallation then
+            begin
+                if Not Exec(ExpandConstant('{cmd}'),'/C ( dir /b "unins***.exe" | findstr /r "unins[0-9][0-9][0-9].exe" ) > tempu & ( for /f "delims=" %A in ( tempu ) do start %A /SILENT /SUPPRESSMSGBOXES ) & del tempu', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, uninstallError) then
+                begin
+                    Exec(ExpandConstant('{cmd}'),'/C mkdir '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database & xcopy /y /s ka-lite\kalite\database\data.sqlite '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, saveDatabaseTemp);
+                    Exec(ExpandConstant('{cmd}'),'/C cd .. & del /q "'+ExpandConstant('{app}')+'\*" & for /d %x in ( "'+ExpandConstant('{app}')+'\*" ) do @rd /s /q "%x"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, cleanOldKaliteFolder);
+                    Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\kalite\database & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database\data.sqlite ka-lite\kalite\database', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreDatabaseTemp);
+                end;   
+            end;           
+        end
+        else if MsgBox('Installing fresh will delete all of your existing data; is this what you really want to do?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
+        begin
+            existDatabase := False;
+            isUpgrade := False;
+            if Not DeleteFile(targetPath + '\ka-lite\kalite\database\data.sqlite') then
+            begin
+                MsgBox('Error' #13#13 'Failed to delete the old database as requested; aborting the install.', mbError, MB_OK);
+                forceCancel := True;
+                WizardForm.Close;
+            end;
+        end
+        else
+        begin
+            existDatabase := True;
+            isUpgrade := True;
+        end;               
+    end;
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
     result := True;
+    
     if CurPageID = UserInformationPage.ID then
     begin
         if UserInformationPage.Values[0] <> nil then
@@ -197,30 +234,7 @@ begin
         isUpgrade := False;
         if WizardForm.PrevAppDir <> nil then
         begin
-            if FileExists(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
-            begin
-                if MsgBox('We have detected an existing KA Lite installation; would you like to upgrade?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
-                begin
-                    existDatabase := True;
-                    isUpgrade := True;
-                end
-                else if MsgBox('Installing fresh will delete all of your existing data; is this what you really want to do?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
-                begin
-                    existDatabase := False;
-                    isUpgrade := False;
-                    if Not DeleteFile(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
-                    begin
-                        MsgBox('Error' #13#13 'Failed to delete the old database as requested; aborting the install.', mbError, MB_OK);
-                        forceCancel := True;
-                        WizardForm.Close;
-                    end;
-                end
-                else
-                begin
-                    existDatabase := True;
-                    isUpgrade := True;
-                end;
-            end;
+            HandleExistentDatabase(False, WizardForm.PrevAppDir);
         end;
     end;
     
@@ -228,45 +242,30 @@ begin
     begin
         if Not existDatabase and Not isUpgrade then
         begin
-            if FileExists(ExpandConstant('{app}')+'\ka-lite\kalite\database\data.sqlite') then
-            begin
-                if MsgBox('We have detected an existing KA Lite installation; would you like to upgrade?', mbInformation,  MB_YESNO or MB_DEFBUTTON1) = IDYES then
-                begin
-                    existDatabase := True;
-                    isUpgrade := True;
-                    if Not Exec(ExpandConstant('{cmd}'),'/C ( dir /b "unins***.exe" | findstr /r "unins[0-9][0-9][0-9].exe" ) > tempu & ( for /f "delims=" %A in ( tempu ) do start %A /SILENT /SUPPRESSMSGBOXES ) & del tempu', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, uninstallError) then
-                    begin
-                        Exec(ExpandConstant('{cmd}'),'/C mkdir '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database & xcopy /y /s ka-lite\kalite\database\data.sqlite '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, saveDatabaseTemp);
-                        Exec(ExpandConstant('{cmd}'),'/C cd .. & del /q "'+ExpandConstant('{app}')+'\*" & for /d %x in ( "'+ExpandConstant('{app}')+'\*" ) do @rd /s /q "%x"', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, cleanOldKaliteFolder);
-                        Exec(ExpandConstant('{cmd}'),'/C mkdir ka-lite\kalite\database & xcopy /y /s '+ExpandConstant('{tmp}')+'\ka-lite\kalite\database\data.sqlite ka-lite\kalite\database', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, restoreDatabaseTemp);
-                    end;                   
-                end
-                else if MsgBox('Installing fresh will delete all of your existing data; is this what you really want to do?', mbInformation,  MB_YESNO or MB_DEFBUTTON2) = IDYES then
-                begin
-                    existDatabase := False;
-                    isUpgrade := False;
-                    if Not DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
-                    begin
-                        MsgBox('Error' #13#13 'Failed to delete the old database as requested; aborting the install.', mbError, MB_OK);
-                        forceCancel := True;
-                        WizardForm.Close;
-                    end;
-                end
-                else
-                begin
-                    existDatabase := True;
-                    isUpgrade := True;
-                end;
-            end;
+            HandleExistentDatabase(True, ExpandConstant('{app}'));
         end; 
+    end;  
+end;
+
+procedure HandlePythonSetup;
+var
+    installPythonErrorCode : Integer;
+begin
+    if(MsgBox('Python error' #13#13 'Python 2.6+ is required to run KA Lite; do you wish to first install Python 2.7.3, before continuing with the installation of KA Lite?', mbConfirmation, MB_YESNO) = idYes) then
+    begin
+        ExtractTemporaryFile('python-2.7.3.msi');
+        ShellExec('open', ExpandConstant('{tmp}')+'\python-2.7.3.msi', '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, installPythonErrorCode);  
+    end
+    else begin
+        MsgBox('Error' #13#13 'You must have Python 2.6+ installed to proceed! Installation will now exit.', mbError, MB_OK);
+        forceCancel := True;
+        WizardForm.Close;
     end;
-  
 end;
 
 function InitializeSetup(): Boolean;
 var
   PythonVersionCodeCheck: integer;
-  InstallPython: integer;
   killErrorCode: integer;
 begin
     installFlag:=true;
@@ -282,29 +281,12 @@ begin
     begin
         if PythonVersionCodeCheck = 1 then
         begin
-            if(MsgBox('Error' #13#13 'Python 2.6+ is required to run KA Lite; do you wish to first install Python 2.7.3, before continuing with the installation of KA Lite?', mbConfirmation, MB_YESNO) = idYes) then
-            begin
-                ExtractTemporaryFile('python-2.7.3.msi');
-                ShellExec('open', ExpandConstant('{tmp}')+'\python-2.7.3.msi', '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, InstallPython);  
-            end
-            else begin
-                MsgBox('Error' #13#13 'You must have Python 2.6+ installed to proceed! Installation will now exit.', mbError, MB_OK);
-                forceCancel := True;
-                WizardForm.Close;
-            end;         
+            HandlePythonSetup();
         end;
     end
-    else begin
-        if (MsgBox('Python' #13#13 'Python 2.6+ is required to run KA Lite; do you wish to first install Python 2.7.3, before continuing with the installation of KA Lite?', mbConfirmation, MB_YESNO) = idYes) then
-        begin
-            ExtractTemporaryFile('python-2.7.3.msi');
-            ShellExec('open', ExpandConstant('{tmp}')+'\python-2.7.3.msi', '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, InstallPython);
-        end
-        else begin
-            MsgBox('Error' #13#13 'You must have Python 2.6+ installed to proceed! Installation will now exit.', mbError, MB_OK);
-            forceCancel := True;
-            WizardForm.Close;
-        end;
+    else 
+    begin
+        HandlePythonSetup();
     end;  
 end;
 
