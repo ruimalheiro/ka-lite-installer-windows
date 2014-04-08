@@ -200,7 +200,8 @@ begin
                     isUpgrade := False;
                     if Not DeleteFile(WizardForm.PrevAppDir + '\ka-lite\kalite\database\data.sqlite') then
                     begin
-                        MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
+                        MsgBox('Error' #13#13 'Failed to delete the old database as requested; aborting the install.', mbError, MB_OK);
+                        WizardForm.Close;
                     end;
                 end
                 else
@@ -235,7 +236,8 @@ begin
                     isUpgrade := False;
                     if Not DeleteFile(ExpandConstant('{app}') + '\ka-lite\kalite\database\data.sqlite') then
                     begin
-                        MsgBox('Error' #13#13 'Failed to delete Django database; continuing install.', mbError, MB_OK);
+                        MsgBox('Error' #13#13 'Failed to delete the old database as requested; aborting the install.', mbError, MB_OK);
+                        WizardForm.Close;
                     end;
                 end
                 else
