@@ -397,11 +397,11 @@ begin
                 begin
                     if Not SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_STARTUP:TRUE;' + #13#10, False) then
                     begin
-                        MsgBox('File Error' #13#13 'Failed to create config file.', mbError, MB_OK);
+                        MsgBox('Configuration file error.' #13#13 'Setup has failed to add the entry in the configuration file to run KA Lite at Windows startup. The installation may proceed and you can set this option later while using KA Lite.', mbError, MB_OK);
                     end;
                 end
                 else begin
-                    MsgBox('Startup Error' #13#13 'Failed to register the task to run at startup.', mbError, MB_OK);
+                    MsgBox('GUI tools error.' #13#13 'Setup has failed to register a task to run KA Lite at Windows startup. The installation may proceed and you can set this option later while using KA Lite.', mbError, MB_OK);
                 end;      
             end
             else if StartupPage.SelectedValueIndex = 1 then
@@ -410,11 +410,11 @@ begin
                 begin
                     if Not SaveStringToFile(ExpandConstant('{app}')+'\CONFIG.dat', 'RUN_AT_USER_LOGIN:TRUE;' + #13#10, False) then
                     begin
-                        MsgBox('File Error' #13#13 'Failed to create config file.', mbError, MB_OK);
+                        MsgBox('Configuration file error.' #13#13 'Setup has failed to add the entry in the configuration file to run KA Lite on user login. The installation may proceed and you can set this option later while using KA Lite.', mbError, MB_OK);
                     end;
                 end
                 else begin
-                    MsgBox('Startup Error' #13#13 'Failed to add into startup folder.', mbError, MB_OK);
+                    MsgBox('GUI tools error.' #13#13 'Setup has failed to add the shortcut at the startup folder to run KA Lite on user login. The installation may proceed and you can set this option later while using KA Lite.', mbError, MB_OK);
                 end;
             end;
         end;
