@@ -133,9 +133,9 @@ begin
     StartupPage := CreateInputOptionPage(UserInformationPage.ID,
     'Server Configuration', 'Startup configuration',
     'The server can run automatically. You may choose one of the following options:', True, False);
-    StartupPage.Add('Run the server at windows startup;');
-    StartupPage.Add('Run the server when this user logs in;');
-    StartupPage.Add('None;');
+    StartupPage.Add('Run the server at windows startup');
+    StartupPage.Add('Run the server when this user logs in');
+    StartupPage.Add('Do not run the server at startup.');
     StartupPage.SelectedValueIndex := 2;
 end;
 
