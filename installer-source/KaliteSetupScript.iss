@@ -386,13 +386,10 @@ begin
       
             if Not ShellExec('open', 'python.exe', setupCommand, ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, ServerNameDescriptionCode) then
             begin
-                MsgBox('Error' #13#13 'Failed to initialize database.', mbInformation, MB_OK);
-            end;    
-      
-            if Not ShellExec('open', 'python.exe', 'manage.py videoscan', ExpandConstant('{app}')+'\ka-lite\kalite', SW_HIDE, ewWaitUntilTerminated, ServerNameDescriptionCode) then
-            begin
-                MsgBox('Error' #13#13 'Failed to scan video files.', mbInformation, MB_OK);
-            end;    
+                MsgBox('Critical error.' #13#13 'Setup has failed to initialize the database; aborting the install.', mbInformation, MB_OK);
+                forceCancel := True;
+                WizardForm.Close;
+            end;   
       
             if StartupPage.SelectedValueIndex = 0 then
             begin
