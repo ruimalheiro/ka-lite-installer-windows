@@ -40,7 +40,7 @@ int getVersionFromFile(TCHAR * versionFinal)
 
 	if(ReadFile(hFile, versionBuffer, SIZE, &bytesRead, NULL) == FALSE)
 	{
-		MessageBox(NULL, L"Failed to read the config file", L"Error", MB_OK | MB_ICONERROR);
+		MessageBox(NULL, L"Failed to read KA Lite version file.", L"Error", MB_OK | MB_ICONERROR);
 		CloseHandle(hFile);
 		return 1;
 	}
@@ -95,13 +95,13 @@ int getVersionFromFile(TCHAR * versionFinal)
 	}
 	else if(bytesRead == 0)
 	{
-		MessageBox(NULL, L"No data read from file", L"Error", MB_OK | MB_ICONERROR);
+		MessageBox(NULL, L"No data read from file.", L"Error", MB_OK | MB_ICONERROR);
 		CloseHandle(hFile);
 		return 1;
 	}
 	else
 	{
-		MessageBox(NULL, L"Unexpected value", L"Error", MB_OK | MB_ICONERROR);
+		MessageBox(NULL, L"Unexpected value.", L"Error", MB_OK | MB_ICONERROR);
 		CloseHandle(hFile);
 		return 1;
 	}
@@ -117,7 +117,7 @@ int getVersionFromFile(TCHAR * versionFinal)
 void setKALiteVersion(TCHAR * windowTitle, int windowTitleSize)
 {
 	TCHAR versionFinal[MAX_PATH] = {};
-	wcscat_s(windowTitle, windowTitleSize, L"KA Lite ");
+	wcscat_s(windowTitle, windowTitleSize, L"KA Lite - version ");
 
 	if(getVersionFromFile(versionFinal)==0)
 	{		
