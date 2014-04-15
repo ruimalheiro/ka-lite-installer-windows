@@ -1021,9 +1021,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		return FALSE; // Exit program
 	}
 
-	//Deprecated.
-	//TCHAR windowTitle[30] = {};
-	//setKALiteVersion(windowTitle,30);
+	TCHAR windowTitle[50] = {};
+	setKALiteVersion(windowTitle, 50);
 
 	CHANGEDSTATE = FALSE;
 	SERVERISRUNNING = FALSE;
@@ -1070,7 +1069,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// Creating the window.
 	DWORD windowStyle = WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU| CS_NOCLOSE;
-	hwnd = CreateWindowEx(NULL, className, L"KA Lite - 0.11.1", windowStyle , CW_USEDEFAULT, CW_USEDEFAULT, 275, 170, NULL,  NULL, hInstance, NULL);	
+	hwnd = CreateWindowEx(NULL, className, windowTitle, windowStyle, CW_USEDEFAULT, CW_USEDEFAULT, 275, 170, NULL,  NULL, hInstance, NULL);	
 
 	if(hwnd == NULL){
 		MessageBox(NULL, L"Failed to create the window.", L"Error",MB_ICONEXCLAMATION | MB_OK);
