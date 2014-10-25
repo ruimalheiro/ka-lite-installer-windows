@@ -210,8 +210,8 @@ const
     NUMBERS = '1234567890';
     SPECIAL_CHARS = '@.+-_';
     USERNAME_CHARACTERS = UCASE_LETTERS + LCASE_LETTERS + NUMBERS + SPECIAL_CHARS;
-    USERNAME_LENGTH = 75;
-    PASSWORD_LENGTH = 128;
+    USERNAME_LENGTH = 30; // REF:   https://github.com/learningequality/ka-lite/blob/master/python-packages/django/contrib/auth/models.py#L377
+    PASSWORD_LENGTH = 128;  // REF: https://github.com/learningequality/ka-lite/blob/master/python-packages/django/contrib/auth/models.py#L200
 
 function ValidateUserInformationFields(): Boolean;
 var
@@ -223,7 +223,7 @@ var
 begin
     result := False;
     // From KA-Lite django.contrib.auth.models.AbstractUser: 
-    //   Required. 75 characters or fewer. Letters, numbers and @/./+/-/_ characters.
+    //   Required. 30 characters or fewer. Letters, numbers and @/./+/-/_ characters.
     username := UserInformationPage.Values[0];
     pass1 := UserInformationPage.Values[1];
     pass2 := UserInformationPage.Values[2];
@@ -231,7 +231,7 @@ begin
     begin
         if (Length(username) > USERNAME_LENGTH) then
         begin
-            MsgBox('Error' #13#13 'Username must be at most 75 characters.', mbError, MB_OK);
+            MsgBox('Error' #13#13 'Username must be at most ' + IntToStr(USERNAME_LENGTH) + ' characters.', mbError, MB_OK);
             result := False;
         end
         else begin
@@ -250,7 +250,7 @@ begin
             begin
                 if Length(pass1) > PASSWORD_LENGTH then
                 begin
-                    MsgBox('Error' #13#13 'Password must be at most 128 characters.', mbError, MB_OK);
+                    MsgBox('Error' #13#13 'Password must be at most ' + IntToStr(PASSWORD_LENGTH) + ' characters.', mbError, MB_OK);
                     result := False;
                 end
                 else begin
