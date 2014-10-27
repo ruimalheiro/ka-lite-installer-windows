@@ -10,7 +10,6 @@
 
 #expr DeleteFile(SourcePath+"\version.temp")
 
-
 [Setup]
 AppId={#MyAppName}-{#MyAppPublisher}
 AppName={#MyAppName}
@@ -86,7 +85,7 @@ Type: Files; Name: "{app}\ka-lite\kalite\*.pyc"
 Type: Files; Name: "{userstartup}\KA Lite.lnk"
 Type: Files; Name: "{app}\CONFIG.dat"
 
-[code]
+[Code]
 var
   installFlag : boolean;
   startupFlag : string;
@@ -205,27 +204,78 @@ begin
     end;
 end;
 
+const
+    UCASE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    LCASE_LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+    NUMBERS = '1234567890';
+    SPECIAL_CHARS = '@.+-_';
+    USERNAME_CHARACTERS = UCASE_LETTERS + LCASE_LETTERS + NUMBERS + SPECIAL_CHARS;
+    USERNAME_LENGTH = 30; // REF:   https://github.com/learningequality/ka-lite/blob/master/python-packages/django/contrib/auth/models.py#L377
+    PASSWORD_LENGTH = 128;  // REF: https://github.com/learningequality/ka-lite/blob/master/python-packages/django/contrib/auth/models.py#L200
+
+function ValidateUserInformationFields(): Boolean;
+var
+    username : string;
+    pass1 : string;
+    pass2 : string;
+    i: integer;
+    s: string;
+begin
+    result := False;
+    // From KA-Lite django.contrib.auth.models.AbstractUser: 
+    //   Required. 30 characters or fewer. Letters, numbers and @/./+/-/_ characters.
+    username := UserInformationPage.Values[0];
+    pass1 := UserInformationPage.Values[1];
+    pass2 := UserInformationPage.Values[2];
+    if username <> nil then
+    begin
+        if (Length(username) > USERNAME_LENGTH) then
+        begin
+            MsgBox('Error' #13#13 'Username must be at most ' + IntToStr(USERNAME_LENGTH) + ' characters.', mbError, MB_OK);
+            result := False;
+        end
+        else begin
+            // check username for valid characters
+            for i := 0 to Length(username) do
+            begin
+                s := Copy(username, i, 1);
+                if Pos(s, USERNAME_CHARACTERS) = 0 then
+                begin
+                     MsgBox('Username must only contain letters, numbers and @/./+/-/_ characters.'#13#13 'It has an invalid character: "' + s + '".', mbError, MB_OK);
+                     result := False;
+                     exit;
+                end;
+            end;
+            if (pass1 = pass2) And (pass1 <> nil) And (pass2 <> nil) then
+            begin
+                if Length(pass1) > PASSWORD_LENGTH then
+                begin
+                    MsgBox('Error' #13#13 'Password must be at most ' + IntToStr(PASSWORD_LENGTH) + ' characters.', mbError, MB_OK);
+                    result := False;
+                end
+                else begin
+                    result := True;
+                end;
+            end
+            else begin
+                MsgBox('Error' #13#13 'Invalid password or the password does not match on both fields.', mbError, MB_OK);
+                result := False;
+            end;
+        end;
+    end
+    else begin
+        MsgBox('Error' #13#13 'Invalid username. You must enter a non-empty username.', mbError, MB_OK);
+        result := False;
+    end;
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
     result := True;
     
     if CurPageID = UserInformationPage.ID then
     begin
-        if UserInformationPage.Values[0] <> nil then
-        begin
-            if (UserInformationPage.Values[1] = UserInformationPage.Values[2]) And (UserInformationPage.Values[1] <> nil) And (UserInformationPage.Values[2] <> nil) then
-            begin
-                result := True;
-            end
-            else begin
-                MsgBox('Error' #13#13 'Invalid password or the password does not match on both fields.', mbError, MB_OK);
-                result := False;
-            end;
-        end
-        else begin
-            MsgBox('Error' #13#13 'Invalid username. You must enter a non-empty username.', mbError, MB_OK);
-            result := False;
-        end;
+        result := ValidateUserInformationFields();
     end;
     
     if CurPageID = wpLicense then
