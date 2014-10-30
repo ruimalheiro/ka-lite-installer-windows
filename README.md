@@ -12,6 +12,17 @@ Also see: [compiled bundle and video overview](http://kalitewiki.learningequalit
 * Git (note: install with the option to place the `git` executable in the path, so it can be run within `cmd`)
 
 ---
+#### Instructions to update Microsoft Visual Studio 2012
+###### Steps to update:
+* Click on TOOLS menu
+* Select Extensions and Updates... then another dialog will appear.
+* Click on Update.
+
+###### Install the downloaded update in your machine
+* Click on BUILD.
+* Select Build Solution.
+
+---
 #### Instructions to build "KALiteSetup.exe":
 * Clone this repository;
 * Open `cmd` -- the Windows command prompt;
