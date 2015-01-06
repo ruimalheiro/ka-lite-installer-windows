@@ -6,7 +6,7 @@
 #include <map>
 
 #include "resource.h"
-
+#define ID_TRAY_APP_ICON 5000
 #define WM_TRAYICON ( WM_USER + 1 )
 
 UINT CURRENT_VALID_ID = WM_TRAYICON + 1;
@@ -23,6 +23,7 @@ class fle_BaseWindow
 		fle_BaseWindow(HINSTANCE, int, int, TCHAR*, TCHAR*);
 		void show(void);
 		void test(void);
+		HWND& getWindowReference(void);
 };
 
 fle_BaseWindow::fle_BaseWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE)
@@ -40,6 +41,10 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR
 	wc.hbrBackground = (HBRUSH) COLOR_APPWORKSPACE;
 	wc.lpszClassName = CLASS_NAME;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
+	//wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON));
+	//wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
+	wc.hIcon = NULL;
+	wc.hIconSm = NULL;
 
 	if(!RegisterClassEx(&wc)){
 		MessageBox(NULL, L"Failed to register the window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
@@ -56,14 +61,12 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR
 
 void fle_BaseWindow::show()
 {
-	MSG Msg;
+	
+}
 
-	ShowWindow(this->hwnd, SW_SHOW);
-
-	while(GetMessage(&Msg, NULL, 0 , 0) > 0){
-		TranslateMessage(&Msg);
-		DispatchMessage(&Msg);
-	}
+HWND& fle_BaseWindow::getWindowReference()
+{
+	return this->hwnd;
 }
 
 LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -143,6 +146,72 @@ void fle_BaseWindow::test()
 
 
 
+class fle_TrayWindow : public fle_BaseWindow
+{
+	private:
+		NOTIFYICONDATA notifyIconData;
+	public:
+		fle_TrayWindow(HINSTANCE, int, int, TCHAR*, TCHAR*);
+		void show(void);
+};
+
+fle_TrayWindow::fle_TrayWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE) : fle_BaseWindow(hInstance, WIDTH, HEIGHT, CLASS_NAME, TITLE)
+{
+	// Allocate memory for the structure.
+	memset(&notifyIconData, 0, sizeof(NOTIFYICONDATA));
+	notifyIconData.cbSize = sizeof(NOTIFYICONDATA);
+
+	// Bind the NOTIFYICONDATA structure to our global hwnd ( handle to main window ).
+	notifyIconData.hWnd = fle_BaseWindow::getWindowReference();
+
+	// Set the NOTIFYICONDATA ID. HWND and uID form a unique identifier for each item in system tray.
+	notifyIconData.uID = ID_TRAY_APP_ICON;
+
+	// Set up flags.
+	notifyIconData.uFlags = NIF_ICON    | // Guarantees that the hIcon member will be a valid icon.
+		                    NIF_MESSAGE | // When someone clicks in the system tray icon, we want a WM_ type message to be sent to our WNDPROC
+		                    NIF_TIP     | 
+							NIF_INFO    | 
+							NIF_SHOWTIP;  // Show tooltip.
+
+	// This message must be handled in hwnd's window procedure.
+	notifyIconData.uCallbackMessage = WM_TRAYICON;
+
+	// Load the icon as a resource.
+	notifyIconData.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
+
+	// Set the tooltip text.
+	lstrcpy(notifyIconData.szTip, L"KA Lite");
+
+	// Time to display the tooltip.
+	notifyIconData.uTimeout = 100;
+
+	// Type of tooltip (balloon).
+	notifyIconData.dwInfoFlags = NIIF_INFO;
+
+	// Copy text to the structure.
+	lstrcpy(notifyIconData.szInfo, L"");
+	lstrcpy(notifyIconData.szInfoTitle, L"");
+
+	Shell_NotifyIcon(NIM_ADD, &notifyIconData);
+}
+
+void fle_TrayWindow::show()
+{
+	MSG Msg;
+
+	while(GetMessage(&Msg, NULL, 0 , 0) > 0){
+		TranslateMessage(&Msg);
+		DispatchMessage(&Msg);
+	}
+	
+	fle_BaseWindow::test();
+}
+
+
+
+
+
 class fle_Window : public fle_BaseWindow
 {
 	public:
@@ -157,12 +226,15 @@ fle_Window::fle_Window(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS
 
 void fle_Window::show()
 {
-	fle_BaseWindow::show();
+	MSG Msg;
+
+	ShowWindow(fle_BaseWindow::getWindowReference(), SW_SHOW);
+
+	while(GetMessage(&Msg, NULL, 0 , 0) > 0){
+		TranslateMessage(&Msg);
+		DispatchMessage(&Msg);
+	}
 	
-	//if(!IsWindowVisible(this->hwnd))
-	//{
-		//destroyTrayIcon();
-	//}
 	fle_BaseWindow::test();
 }
 
