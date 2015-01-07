@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <map>
 
-//#include "resource.h"
-
 #define ID_TRAY_APP_ICON 5000
 #define WM_TRAYICON ( WM_USER + 1 )
 
@@ -177,11 +175,12 @@ fle_TrayWindow::fle_TrayWindow(HINSTANCE * hInstance) : fle_BaseWindow(hInstance
 	notifyIconData->uID = ID_TRAY_APP_ICON;
 
 	// Set up flags.
-	notifyIconData->uFlags = NIF_ICON    | // Guarantees that the hIcon member will be a valid icon.
-		                     NIF_MESSAGE | // When someone clicks in the system tray icon, we want a WM_ type message to be sent to our WNDPROC
-		                     NIF_TIP     | 
-							 NIF_INFO    | 
-							 NIF_SHOWTIP;  // Show tooltip.
+	// 1 - Guarantees that the hIcon member will be a valid icon.
+	// 2 - When someone clicks in the system tray icon, we want a WM_ type message to be sent to our WNDPROC.
+	// 3 -
+	// 4 -
+	// 5 - // Show tooltip.
+	notifyIconData->uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_INFO | NIF_SHOWTIP;
 
 	// This message must be handled in hwnd's window procedure.
 	notifyIconData->uCallbackMessage = WM_TRAYICON;
