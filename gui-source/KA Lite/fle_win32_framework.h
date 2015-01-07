@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include <map>
 
-#include "resource.h"
+//#include "resource.h"
+
 #define ID_TRAY_APP_ICON 5000
 #define WM_TRAYICON ( WM_USER + 1 )
 
@@ -14,21 +15,22 @@ UINT CURRENT_VALID_ID = WM_TRAYICON + 1;
 class fle_BaseWindow
 {
 	private:
-		HINSTANCE hInstance;
+		HINSTANCE * p_hInstance;
 		HWND hwnd;
 
 		std::map<int, fle_BaseWindow*> children_map;
 		static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 	public:
-		fle_BaseWindow(HINSTANCE, int, int, TCHAR*, TCHAR*);
+		fle_BaseWindow(HINSTANCE*, int, int, TCHAR*, TCHAR*);
 		void show(void);
 		void test(void);
 		HWND& getWindowReference(void);
+		HINSTANCE* getInstanceReference(void);
 };
 
-fle_BaseWindow::fle_BaseWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE)
+fle_BaseWindow::fle_BaseWindow(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE)
 {
-	hInstance = hInstance;
+	p_hInstance = hInstance;
 	WNDCLASSEX wc = {0};
 
 	// Registering the window class.
@@ -36,7 +38,7 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR
 	wc.lpfnWndProc = &fle_BaseWindow::WndProc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
-	wc.hInstance = hInstance;
+	wc.hInstance = *p_hInstance;
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = (HBRUSH) COLOR_APPWORKSPACE;
 	wc.lpszClassName = CLASS_NAME;
@@ -52,21 +54,21 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR
 
 	// Creating the window.
 	DWORD windowStyle = WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU;
-	this -> hwnd = CreateWindowEx(NULL, CLASS_NAME, TITLE, windowStyle, CW_USEDEFAULT, CW_USEDEFAULT, WIDTH, HEIGHT, NULL,  NULL, hInstance, NULL);	
+	this -> hwnd = CreateWindowEx(NULL, CLASS_NAME, TITLE, windowStyle, CW_USEDEFAULT, CW_USEDEFAULT, WIDTH, HEIGHT, NULL,  NULL, *p_hInstance, NULL);	
 
 	if(hwnd == NULL){
 		MessageBox(NULL, L"Failed to create the window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
 	}
 }
 
-void fle_BaseWindow::show()
-{
-	
-}
-
 HWND& fle_BaseWindow::getWindowReference()
 {
 	return this->hwnd;
+}
+
+HINSTANCE * fle_BaseWindow::getInstanceReference()
+{
+	return this->p_hInstance;
 }
 
 LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -149,55 +151,75 @@ void fle_BaseWindow::test()
 class fle_TrayWindow : public fle_BaseWindow
 {
 	private:
-		NOTIFYICONDATA notifyIconData;
+		NOTIFYICONDATA *notifyIconData;
+		HINSTANCE * p_hInstance;
 	public:
-		fle_TrayWindow(HINSTANCE, int, int, TCHAR*, TCHAR*);
+		fle_TrayWindow(HINSTANCE*);
+		NOTIFYICONDATA* getNotifyIconDataStructure(void);
+		HINSTANCE* getInstanceReference(void);
+		void setTrayIcon(UINT);
 		void show(void);
 };
 
-fle_TrayWindow::fle_TrayWindow(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE) : fle_BaseWindow(hInstance, WIDTH, HEIGHT, CLASS_NAME, TITLE)
+fle_TrayWindow::fle_TrayWindow(HINSTANCE * hInstance) : fle_BaseWindow(hInstance, 0, 0, L"DEFAULT", L"DEFAULT")
 {
+	p_hInstance = hInstance;
+
 	// Allocate memory for the structure.
-	memset(&notifyIconData, 0, sizeof(NOTIFYICONDATA));
-	notifyIconData.cbSize = sizeof(NOTIFYICONDATA);
+	//memset(notifyIconData, 0, sizeof(NOTIFYICONDATA));
+	notifyIconData = (NOTIFYICONDATA*)malloc(sizeof(NOTIFYICONDATA));
+	notifyIconData->cbSize = sizeof(NOTIFYICONDATA);
 
 	// Bind the NOTIFYICONDATA structure to our global hwnd ( handle to main window ).
-	notifyIconData.hWnd = fle_BaseWindow::getWindowReference();
+	notifyIconData->hWnd = fle_BaseWindow::getWindowReference();
 
 	// Set the NOTIFYICONDATA ID. HWND and uID form a unique identifier for each item in system tray.
-	notifyIconData.uID = ID_TRAY_APP_ICON;
+	notifyIconData->uID = ID_TRAY_APP_ICON;
 
 	// Set up flags.
-	notifyIconData.uFlags = NIF_ICON    | // Guarantees that the hIcon member will be a valid icon.
-		                    NIF_MESSAGE | // When someone clicks in the system tray icon, we want a WM_ type message to be sent to our WNDPROC
-		                    NIF_TIP     | 
-							NIF_INFO    | 
-							NIF_SHOWTIP;  // Show tooltip.
+	notifyIconData->uFlags = NIF_ICON    | // Guarantees that the hIcon member will be a valid icon.
+		                     NIF_MESSAGE | // When someone clicks in the system tray icon, we want a WM_ type message to be sent to our WNDPROC
+		                     NIF_TIP     | 
+							 NIF_INFO    | 
+							 NIF_SHOWTIP;  // Show tooltip.
 
 	// This message must be handled in hwnd's window procedure.
-	notifyIconData.uCallbackMessage = WM_TRAYICON;
-
-	// Load the icon as a resource.
-	notifyIconData.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
+	notifyIconData->uCallbackMessage = WM_TRAYICON;
 
 	// Set the tooltip text.
-	lstrcpy(notifyIconData.szTip, L"KA Lite");
+	lstrcpy(notifyIconData->szTip, L"KA Lite");
 
 	// Time to display the tooltip.
-	notifyIconData.uTimeout = 100;
+	notifyIconData->uTimeout = 100;
 
 	// Type of tooltip (balloon).
-	notifyIconData.dwInfoFlags = NIIF_INFO;
+	notifyIconData->dwInfoFlags = NIIF_INFO;
 
 	// Copy text to the structure.
-	lstrcpy(notifyIconData.szInfo, L"");
-	lstrcpy(notifyIconData.szInfoTitle, L"");
+	lstrcpy(notifyIconData->szInfo, L"");
+	lstrcpy(notifyIconData->szInfoTitle, L"");
+}
 
-	Shell_NotifyIcon(NIM_ADD, &notifyIconData);
+NOTIFYICONDATA* fle_TrayWindow::getNotifyIconDataStructure()
+{
+	return notifyIconData;
+}
+
+HINSTANCE* fle_TrayWindow::getInstanceReference()
+{
+	return p_hInstance;
+}
+
+void fle_TrayWindow::setTrayIcon(UINT icon_id)
+{
+	// Load the icon as a resource.
+	fle_TrayWindow::getNotifyIconDataStructure()->hIcon = LoadIcon(*getInstanceReference(), MAKEINTRESOURCE(icon_id));
 }
 
 void fle_TrayWindow::show()
 {
+	Shell_NotifyIcon(NIM_ADD, notifyIconData);
+
 	MSG Msg;
 
 	while(GetMessage(&Msg, NULL, 0 , 0) > 0){
@@ -212,16 +234,20 @@ void fle_TrayWindow::show()
 
 
 
+
+
 class fle_Window : public fle_BaseWindow
 {
+	private:
+		HINSTANCE * p_hInstance;
 	public:
-		fle_Window(HINSTANCE, int, int, TCHAR*, TCHAR*);
+		fle_Window(HINSTANCE*, int, int, TCHAR*, TCHAR*);
 		void show(void);
 };
 
-fle_Window::fle_Window(HINSTANCE hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE) : fle_BaseWindow(hInstance, WIDTH, HEIGHT, CLASS_NAME, TITLE)
+fle_Window::fle_Window(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE) : fle_BaseWindow(hInstance, WIDTH, HEIGHT, CLASS_NAME, TITLE)
 {
-
+	p_hInstance = hInstance;
 }
 
 void fle_Window::show()
