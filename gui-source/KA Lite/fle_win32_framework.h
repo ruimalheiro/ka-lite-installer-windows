@@ -5,18 +5,127 @@
 #include <stdio.h>
 #include <map>
 
+using namespace std;
+
 #define ID_TRAY_APP_ICON 5000
 #define WM_TRAYICON ( WM_USER + 1 )
 
-UINT CURRENT_VALID_ID = WM_TRAYICON + 1;
+//GLOBAL and structs
 
+static UINT CURRENT_VALID_ID = WM_TRAYICON + 1;
+
+
+/*struct TrayMenuItem 
+{
+	UINT id;
+	TCHAR * title;
+	void (*action)(void);
+};*/
+
+// GLOBAL functions
+UINT getAvailableID();
+//TrayMenuItem* CreateTrayMenu(TCHAR*, void (*action_function)(void));
+
+UINT getAvailableID()
+{
+	CURRENT_VALID_ID++;
+	return CURRENT_VALID_ID;
+}
+
+/*TrayMenuItem* CreateTrayMenu(TCHAR * title, void (*action_function)(void))
+{
+	TrayMenuItem * menu = new TrayMenuItem();
+	UINT a_id = getAvailableID();
+	menu->id = a_id;
+	menu->title = title;
+	menu->action = action_function;
+
+	return menu;
+}*/
+
+class fle_BaseWindow;
+class TrayMenuItem
+{
+	private:
+		HMENU hMenu;
+		UINT id;
+		TCHAR * title;
+		void (*f_action)(void);
+		UINT menuType;
+	public:
+		TrayMenuItem(TCHAR*, void (*action_function)(void));
+		//void setActionFunction(void (*action_function)(void));
+		void action(void);
+		UINT getID(void);
+		TCHAR* getTitle(void);
+		void addSubMenu(TrayMenuItem*);
+		HMENU getMenu(void);
+		void setSubMenu(void);
+		UINT getMenuType(void);
+};
+
+TrayMenuItem::TrayMenuItem(TCHAR * m_title, void (*action_function)(void))
+{
+	hMenu = CreatePopupMenu();
+	id = getAvailableID();
+	title = new TCHAR[sizeof(m_title)];
+	lstrcpy(title, m_title);
+	f_action = action_function;
+	menuType = MF_STRING;
+}
+
+void TrayMenuItem::action(void)
+{
+	if(f_action != NULL)
+	{
+		f_action();
+	}
+}
+
+UINT TrayMenuItem::getID()
+{
+	return this->id;
+}
+
+TCHAR* TrayMenuItem::getTitle()
+{
+	return this->title;
+}
+
+HMENU TrayMenuItem::getMenu()
+{
+	return this->hMenu;
+}
+
+void TrayMenuItem::setSubMenu()
+{
+	this->menuType = MF_STRING | MF_POPUP;
+}
+
+UINT TrayMenuItem::getMenuType()
+{
+	return this->menuType;
+}
+
+
+
+
+
+
+
+
+
+
+//CLASS
 class fle_BaseWindow
 {
 	private:
 		HINSTANCE * p_hInstance;
+		WNDCLASSEX * p_wc;
 		HWND hwnd;
+		static HMENU hMenu;
 
-		std::map<int, fle_BaseWindow*> children_map;
+		static std::map<UINT, TrayMenuItem*> tray_children_map;
 		static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 	public:
 		fle_BaseWindow(HINSTANCE*, int, int, TCHAR*, TCHAR*);
@@ -24,12 +133,23 @@ class fle_BaseWindow
 		void test(void);
 		HWND& getWindowReference(void);
 		HINSTANCE* getInstanceReference(void);
+		static void processTrayMenu(WPARAM, LPARAM, HWND*, HMENU*);
+		static HMENU& getMainMenu(void);
+		static void addTrayMenu(TrayMenuItem*);
+		static std::map<UINT, TrayMenuItem*>& getTrayMap(void);
+
 };
+
+std::map<UINT, TrayMenuItem*> &fle_BaseWindow::getTrayMap()
+{
+	return fle_BaseWindow::tray_children_map;
+}
 
 fle_BaseWindow::fle_BaseWindow(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCHAR * CLASS_NAME, TCHAR * TITLE)
 {
 	p_hInstance = hInstance;
-	WNDCLASSEX wc = {0};
+	WNDCLASSEX wc = { 0 };
+	hMenu = CreatePopupMenu();
 
 	// Registering the window class.
 	wc.cbSize = sizeof(WNDCLASSEX);
@@ -46,6 +166,8 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCH
 	wc.hIcon = NULL;
 	wc.hIconSm = NULL;
 
+	p_wc = &wc;
+
 	if(!RegisterClassEx(&wc)){
 		MessageBox(NULL, L"Failed to register the window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
 	}
@@ -57,6 +179,8 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCH
 	if(hwnd == NULL){
 		MessageBox(NULL, L"Failed to create the window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
 	}
+
+	tray_children_map = map<UINT, TrayMenuItem*>();
 }
 
 HWND& fle_BaseWindow::getWindowReference()
@@ -104,10 +228,7 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 			case WM_TRAYICON:
 				{
-					switch(wParam)
-						{
-							//case ID_TRAY_APP_ICON:
-						}		  
+					processTrayMenu(wParam, lParam, &hwnd, &getMainMenu());
 				}
 				break;
 
@@ -124,6 +245,7 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 			case WM_DESTROY:
 				{
+
 				}
 				break;
 
@@ -136,13 +258,85 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	return 0;
 };
 
+void fle_BaseWindow::processTrayMenu(WPARAM wParam, LPARAM lParam, HWND * hwnd, HMENU * hMenu)
+{
+	switch(wParam)
+		{
+			case ID_TRAY_APP_ICON:
+			// Its the ID_TRAY_APP_ICON. One app can have several tray icons
+			break;
+		}
+
+	// React when the mouse button is released.
+	if (lParam == WM_LBUTTONUP)
+	{
+		static const TCHAR * str = TEXT("CLICK ESQUERDO\n");
+		OutputDebugString(str);		
+	}
+	else if (lParam == WM_RBUTTONDOWN) 
+	{
+		// Show the context menu.
+		// Get current mouse position.
+		POINT curPoint ;
+		GetCursorPos(&curPoint);
+
+		// Sets the main window in foreground.
+		SetForegroundWindow(*hwnd);        
+
+		// TrackPopupMenu blocks the application until TrackPopupMenu returns.
+		UINT clicked = TrackPopupMenu(
+			*hMenu,
+			TPM_RETURNCMD | TPM_NONOTIFY, // Don't send WM_COMMAND messages about this window, instead return the identifier of the clicked menu item.
+			curPoint.x,
+			curPoint.y,
+			0,
+			*hwnd,
+			NULL
+			);
+
+
+
+		for (std::map<UINT,TrayMenuItem*>::iterator it=tray_children_map.begin(); it!=tray_children_map.end(); ++it) 
+		{
+			if(clicked == it->first)
+			{
+				(it->second)->action();
+			}
+		}
+
+	}		  
+};
+
+HMENU& fle_BaseWindow::getMainMenu()
+{
+	return fle_BaseWindow::hMenu;
+};
+
+void fle_BaseWindow::addTrayMenu(TrayMenuItem * menu)
+{
+	if(menu != NULL && menu->getID() != NULL && menu->getTitle() != NULL)
+	{
+		AppendMenu(getMainMenu(), menu->getMenuType(), (UINT)menu->getMenu(), menu->getTitle());
+		tray_children_map.insert(std::pair<UINT,TrayMenuItem*>((UINT)menu->getMenu(), menu));
+	}
+}
+
 void fle_BaseWindow::test()
 {
 	static const TCHAR * str = TEXT("WELCOME FLE FRAMEWORK\n");
     OutputDebugString(str);
 };
 
+HMENU fle_BaseWindow::hMenu;
+std::map<UINT, TrayMenuItem*> fle_BaseWindow::tray_children_map;
 
+
+
+void TrayMenuItem::addSubMenu(TrayMenuItem * menu)
+{
+	AppendMenu(hMenu, menu->getMenuType(), (UINT)menu->getMenu(), menu->getTitle());
+	fle_BaseWindow::getTrayMap().insert(std::pair<UINT,TrayMenuItem*>((UINT)menu->getMenu(), menu));
+}
 
 
 
@@ -151,17 +345,20 @@ class fle_TrayWindow : public fle_BaseWindow
 	private:
 		NOTIFYICONDATA *notifyIconData;
 		HINSTANCE * p_hInstance;
+		HMENU hMenu;
 	public:
 		fle_TrayWindow(HINSTANCE*);
 		NOTIFYICONDATA* getNotifyIconDataStructure(void);
 		HINSTANCE* getInstanceReference(void);
 		void setTrayIcon(UINT);
 		void show(void);
+		void addMenu(TrayMenuItem *);
 };
 
 fle_TrayWindow::fle_TrayWindow(HINSTANCE * hInstance) : fle_BaseWindow(hInstance, 0, 0, L"DEFAULT", L"DEFAULT")
 {
 	p_hInstance = hInstance;
+	hMenu = CreatePopupMenu();
 
 	// Allocate memory for the structure.
 	//memset(notifyIconData, 0, sizeof(NOTIFYICONDATA));
@@ -215,6 +412,11 @@ void fle_TrayWindow::setTrayIcon(UINT icon_id)
 	fle_TrayWindow::getNotifyIconDataStructure()->hIcon = LoadIcon(*getInstanceReference(), MAKEINTRESOURCE(icon_id));
 }
 
+void fle_TrayWindow::addMenu(TrayMenuItem * menu)
+{
+	fle_BaseWindow::addTrayMenu(menu);
+}
+
 void fle_TrayWindow::show()
 {
 	Shell_NotifyIcon(NIM_ADD, notifyIconData);
@@ -228,6 +430,8 @@ void fle_TrayWindow::show()
 	
 	fle_BaseWindow::test();
 }
+
+
 
 
 
