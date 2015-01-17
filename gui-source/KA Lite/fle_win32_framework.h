@@ -24,7 +24,6 @@ UINT getAvailableID()
 	return CURRENT_VALID_ID;
 }
 
-
 // CLASS
 class fle_BaseWindow;
 class fle_TrayMenuItem
@@ -142,8 +141,6 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCH
 	wc.hbrBackground = (HBRUSH) COLOR_APPWORKSPACE;
 	wc.lpszClassName = CLASS_NAME;
 	wc.style = CS_HREDRAW | CS_VREDRAW;
-	//wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON));
-	//wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
 	wc.hIcon = NULL;
 	wc.hIconSm = NULL;
 
@@ -342,7 +339,7 @@ class fle_TrayWindow : public fle_BaseWindow
 		fle_TrayWindow(HINSTANCE*);
 		NOTIFYICONDATA* getNotifyIconDataStructure(void);
 		HINSTANCE* getInstanceReference(void);
-		void setTrayIcon(UINT);
+		void setTrayIcon(TCHAR*);
 		void show(void);
 		void addMenu(fle_TrayMenuItem *);
 		void setStatusFunction(void (*target_function)(void));
@@ -399,10 +396,9 @@ HINSTANCE* fle_TrayWindow::getInstanceReference()
 	return p_hInstance;
 }
 
-void fle_TrayWindow::setTrayIcon(UINT icon_id)
+void fle_TrayWindow::setTrayIcon(TCHAR * icon_path)
 {
-	// Load the icon as a resource.
-	fle_TrayWindow::getNotifyIconDataStructure()->hIcon = LoadIcon(*getInstanceReference(), MAKEINTRESOURCE(icon_id));
+	fle_TrayWindow::getNotifyIconDataStructure()->hIcon = (HICON) LoadImage(NULL, icon_path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE | LR_SHARED); 
 }
 
 void fle_TrayWindow::addMenu(fle_TrayMenuItem * menu)
@@ -463,6 +459,35 @@ void fle_Window::show()
 	}
 	
 	fle_BaseWindow::test();
+}
+
+
+
+// RunSript
+bool runShellScript(TCHAR * script_name, TCHAR * script_parameters, TCHAR * script_path)
+{
+	SHELLEXECUTEINFO shellExecuteInfo;
+	shellExecuteInfo.cbSize = sizeof(SHELLEXECUTEINFO);
+	shellExecuteInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+	shellExecuteInfo.hwnd = NULL;
+	shellExecuteInfo.lpVerb = L"open";
+	shellExecuteInfo.lpFile = script_name;
+	shellExecuteInfo.lpParameters = script_parameters;
+	shellExecuteInfo.lpDirectory = script_path;
+	shellExecuteInfo.nShow = SW_SHOW;
+	shellExecuteInfo.hInstApp = NULL;
+	
+	if(ShellExecuteEx(&shellExecuteInfo))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void printConsole(const TCHAR * message)
+{
+	OutputDebugString(message);
 }
 
 #endif
