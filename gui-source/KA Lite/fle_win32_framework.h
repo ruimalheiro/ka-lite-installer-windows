@@ -30,13 +30,13 @@ class fle_TrayMenuItem
 {
 	private:
 		HMENU hMenu;
+		HMENU *parent_hMenu;
 		UINT id;
 		TCHAR * title;
 		void (*f_action)(void);
 		UINT menuType;
 	public:
 		fle_TrayMenuItem(TCHAR*, void (*action_function)(void));
-		//void setActionFunction(void (*action_function)(void));
 		void action(void);
 		UINT getID(void);
 		TCHAR* getTitle(void);
@@ -44,6 +44,12 @@ class fle_TrayMenuItem
 		HMENU getMenu(void);
 		void setSubMenu(void);
 		UINT getMenuType(void);
+		void check(void);
+		void uncheck(void);
+		void enable(void);
+		void disable(void);
+		HMENU * getParentMenu(void);
+		void setParentMenu(HMENU*);
 };
 
 fle_TrayMenuItem::fle_TrayMenuItem(TCHAR * m_title, void (*action_function)(void))
@@ -54,6 +60,8 @@ fle_TrayMenuItem::fle_TrayMenuItem(TCHAR * m_title, void (*action_function)(void
 	lstrcpy(title, m_title);
 	f_action = action_function;
 	menuType = MF_STRING;
+
+	CheckMenuItem(hMenu, id, MF_CHECKED);
 }
 
 void fle_TrayMenuItem::action(void)
@@ -89,6 +97,35 @@ UINT fle_TrayMenuItem::getMenuType()
 	return this->menuType;
 }
 
+void fle_TrayMenuItem::check()
+{
+	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_CHECKED);
+}
+
+void fle_TrayMenuItem::uncheck()
+{
+	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_UNCHECKED);
+}
+
+void fle_TrayMenuItem::enable()
+{
+	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_ENABLED);
+}
+
+void fle_TrayMenuItem::disable()
+{
+	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_DISABLED | MF_GRAYED);
+}
+
+HMENU * fle_TrayMenuItem::getParentMenu()
+{
+	return this->parent_hMenu;
+}
+
+void fle_TrayMenuItem::setParentMenu(HMENU * parent)
+{
+	this->parent_hMenu = parent;
+}
 
 
 
@@ -112,7 +149,7 @@ class fle_BaseWindow
 		void test(void);
 		HWND& getWindowReference(void);
 		HINSTANCE* getInstanceReference(void);
-		static void processTrayMenu(WPARAM, LPARAM, HWND*, HMENU*);
+		static void processTrayMenu(WPARAM, LPARAM, HWND*, HMENU*, fle_BaseWindow*);
 		static HMENU& getMainMenu(void);
 		static void addTrayMenu(fle_TrayMenuItem*);
 		static std::map<UINT, fle_TrayMenuItem*>& getTrayMap(void);
@@ -152,7 +189,7 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCH
 
 	// Creating the window.
 	DWORD windowStyle = WS_OVERLAPPED | WS_MINIMIZEBOX | WS_SYSMENU;
-	this -> hwnd = CreateWindowEx(NULL, CLASS_NAME, TITLE, windowStyle, CW_USEDEFAULT, CW_USEDEFAULT, WIDTH, HEIGHT, NULL,  NULL, *p_hInstance, NULL);	
+	this -> hwnd = CreateWindowEx(NULL, CLASS_NAME, TITLE, windowStyle, CW_USEDEFAULT, CW_USEDEFAULT, WIDTH, HEIGHT, NULL,  NULL, *p_hInstance, this);	
 
 	if(hwnd == NULL){
 		MessageBox(NULL, L"Failed to create the window.", L"Error", MB_ICONEXCLAMATION | MB_OK);
@@ -173,9 +210,30 @@ HINSTANCE * fle_BaseWindow::getInstanceReference()
 
 LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	fle_BaseWindow * p_Window;
+
+
 	if(fle_BaseWindow::main_loop_function != NULL)
 	{
 		fle_BaseWindow::main_loop_function();
+	}
+
+	if(msg == WM_NCCREATE)
+	{
+		p_Window = static_cast<fle_BaseWindow*>(reinterpret_cast<CREATESTRUCT*>(lParam)->lpCreateParams);
+
+		SetLastError(0);
+		if(!SetWindowLongPtr(hwnd, GWL_USERDATA, reinterpret_cast<LONG_PTR>(p_Window)))
+		{
+			if(GetLastError() != 0)
+			{
+				return false;
+			}
+		}
+	}
+	else
+	{
+		p_Window = reinterpret_cast<fle_BaseWindow*>(GetWindowLongPtr(hwnd, GWL_USERDATA));
 	}
 
 	switch(msg)
@@ -211,7 +269,7 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 			case WM_TRAYICON:
 				{
-					processTrayMenu(wParam, lParam, &hwnd, &getMainMenu());
+					processTrayMenu(wParam, lParam, &hwnd, &getMainMenu(), p_Window);
 				}
 				break;
 
@@ -241,7 +299,7 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 	return 0;
 };
 
-void fle_BaseWindow::processTrayMenu(WPARAM wParam, LPARAM lParam, HWND * hwnd, HMENU * hMenu)
+void fle_BaseWindow::processTrayMenu(WPARAM wParam, LPARAM lParam, HWND * hwnd, HMENU * hMenu, fle_BaseWindow * p_Window)
 {
 	switch(wParam)
 		{
@@ -253,8 +311,7 @@ void fle_BaseWindow::processTrayMenu(WPARAM wParam, LPARAM lParam, HWND * hwnd, 
 	// React when the mouse button is released.
 	if (lParam == WM_LBUTTONUP)
 	{
-		static const TCHAR * str = TEXT("CLICK ESQUERDO\n");
-		OutputDebugString(str);		
+		p_Window->test();
 	}
 	else if (lParam == WM_RBUTTONDOWN) 
 	{
@@ -299,6 +356,7 @@ void fle_BaseWindow::addTrayMenu(fle_TrayMenuItem * menu)
 {
 	if(menu != NULL && menu->getID() != NULL && menu->getTitle() != NULL)
 	{
+		menu->setParentMenu(&getMainMenu());
 		AppendMenu(getMainMenu(), menu->getMenuType(), (UINT)menu->getMenu(), menu->getTitle());
 		tray_children_map.insert(std::pair<UINT, fle_TrayMenuItem*>((UINT)menu->getMenu(), menu));
 	}
@@ -306,7 +364,7 @@ void fle_BaseWindow::addTrayMenu(fle_TrayMenuItem * menu)
 
 void fle_BaseWindow::test()
 {
-	static const TCHAR * str = TEXT("WELCOME FLE FRAMEWORK\n");
+	static const TCHAR * str = TEXT("WELCOME FLE FRAMEWORKKKKKKKKKK\n");
     OutputDebugString(str);
 };
 
@@ -323,6 +381,7 @@ void (*fle_BaseWindow::main_loop_function)(void);
 
 void fle_TrayMenuItem::addSubMenu(fle_TrayMenuItem * menu)
 {
+	menu->setParentMenu(&hMenu);
 	AppendMenu(hMenu, menu->getMenuType(), (UINT)menu->getMenu(), menu->getTitle());
 	fle_BaseWindow::getTrayMap().insert(std::pair<UINT, fle_TrayMenuItem*>((UINT)menu->getMenu(), menu));
 }
