@@ -1,5 +1,6 @@
 #include "fle_win32_framework.h"
 
+// Declare global stuff that you need to use inside the functions.
 fle_TrayWindow * window;
 
 fle_TrayMenuItem * menu1;
@@ -7,60 +8,89 @@ fle_TrayMenuItem * menu2;
 fle_TrayMenuItem * menu3;
 fle_TrayMenuItem * menu4;
 fle_TrayMenuItem * menu5;
+fle_TrayMenuItem * menu6;
+fle_TrayMenuItem * menu7;
 
 
 void trayMenuAction1()
 {
-	/*if(!runShellScript(L"start.bat", NULL, L"ka-lite\\"))
+	if(!runShellScript("start.bat", NULL, "ka-lite\\"))
 	{
 		// Handle error.
-	}*/
-	menu2->check();
+		printConsole("Failed to run the script.\n");
+	}
+	else
+	{
+		menu1->disable();
+		menu2->enable();
+		printConsole("The script was run successfully.\n");
+	}
 }
 
 void trayMenuAction2()
 {
-	/*if(!runShellScript(L"stop.bat", NULL, L"ka-lite\\"))
+	if(!runShellScript("stop.bat", NULL, "ka-lite\\"))
 	{
 		// Handle error.
-	}*/
-	menu1->disable();
+		printConsole("Failed to run the script.\n");
+	}
+	else
+	{
+		menu2->disable();
+		menu1->enable();
+		printConsole("The script was run successfully.\n");
+	}
 }
 
 void trayMenuAction3()
 {
-	printConsole(L"I am an option.\n");
+	if(menu4->isChecked())
+	{
+		menu4->uncheck();
+		menu5->enable();
+	}
+	else
+	{
+		menu4->check();
+		menu5->disable();
+	}
 }
 
 void trayMenuAction4()
 {
-	printConsole(L"I am exiting KA Lite.\n");
+	printConsole("I am exiting KA Lite.\n");
 }
 
 void statusFunction()
 {
 	// The code here runs on each frame of the window main loop.
+	// We can handle things like checking if the server is online and controlling the state of each component.
+	// Basically, the automated stuff.
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	window = new fle_TrayWindow(&hInstance);
-	window->setTrayIcon(L"images\\logo48.ico");
+	window->setTrayIcon("images\\logo48.ico");
 	window->setStatusFunction(&statusFunction);
 
-	menu1 = new fle_TrayMenuItem(L"Start Server", &trayMenuAction1);
-	menu2 = new fle_TrayMenuItem(L"Stop Server", &trayMenuAction2);
-	menu3 = new fle_TrayMenuItem(L"Options", NULL);
-	menu4 = new fle_TrayMenuItem(L"Option 1", &trayMenuAction3);
-	menu5 = new fle_TrayMenuItem(L"Exit KA Lite", &trayMenuAction4);
+	menu1 = new fle_TrayMenuItem("Start Server.", &trayMenuAction1);
+	menu2 = new fle_TrayMenuItem("Stop Server.", &trayMenuAction2);
+	menu3 = new fle_TrayMenuItem("Options", NULL);
+	menu4 = new fle_TrayMenuItem("Run KA Lite when the user logs in.", &trayMenuAction3);
+	menu5 = new fle_TrayMenuItem("Run KA Lite at system startup.", NULL);
+	menu6 = new fle_TrayMenuItem("Auto-start server when KA Lite is run.", NULL);
+	menu7 = new fle_TrayMenuItem("Exit KA Lite.", &trayMenuAction4);
 
 	menu3->setSubMenu();
 	menu3->addSubMenu(menu4);
+	menu3->addSubMenu(menu5);
+	menu3->addSubMenu(menu6);
 	
 	window->addMenu(menu1);
 	window->addMenu(menu2);
 	window->addMenu(menu3);
-	window->addMenu(menu5);
+	window->addMenu(menu7);
 
 	window->show();
 

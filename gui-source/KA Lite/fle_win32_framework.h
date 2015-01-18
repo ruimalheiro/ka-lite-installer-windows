@@ -18,6 +18,19 @@ static UINT CURRENT_VALID_ID = WM_TRAYICON + 1;
 // GLOBAL functions
 UINT getAvailableID();
 
+TCHAR* getTCHAR(char * original)
+{
+	if(original != NULL)
+	{
+		size_t SIZE = strlen(original) + 1;
+		TCHAR * tchar_string = new TCHAR[SIZE];
+		size_t convertedChars = 0;
+		mbstowcs_s(&convertedChars, tchar_string, SIZE, original, _TRUNCATE);
+		return tchar_string;
+	}
+	return NULL;
+}
+
 UINT getAvailableID()
 {
 	CURRENT_VALID_ID++;
@@ -36,7 +49,7 @@ class fle_TrayMenuItem
 		void (*f_action)(void);
 		UINT menuType;
 	public:
-		fle_TrayMenuItem(TCHAR*, void (*action_function)(void));
+		fle_TrayMenuItem(char*, void (*action_function)(void));
 		void action(void);
 		UINT getID(void);
 		TCHAR* getTitle(void);
@@ -46,18 +59,19 @@ class fle_TrayMenuItem
 		UINT getMenuType(void);
 		void check(void);
 		void uncheck(void);
+		bool isChecked(void);
 		void enable(void);
 		void disable(void);
+		bool isEnabled(void);
 		HMENU * getParentMenu(void);
 		void setParentMenu(HMENU*);
 };
 
-fle_TrayMenuItem::fle_TrayMenuItem(TCHAR * m_title, void (*action_function)(void))
+fle_TrayMenuItem::fle_TrayMenuItem(char * m_title, void (*action_function)(void))
 {
 	hMenu = CreatePopupMenu();
 	id = getAvailableID();
-	title = new TCHAR[sizeof(m_title)];
-	lstrcpy(title, m_title);
+	title = getTCHAR(m_title);
 	f_action = action_function;
 	menuType = MF_STRING;
 
@@ -107,6 +121,17 @@ void fle_TrayMenuItem::uncheck()
 	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_UNCHECKED);
 }
 
+bool fle_TrayMenuItem::isChecked()
+{
+	UINT result = GetMenuState(*getParentMenu(), (UINT)getMenu(), MF_BYCOMMAND);
+
+	if(result & MF_CHECKED)
+	{
+		return true;
+	}
+	return false;
+}
+
 void fle_TrayMenuItem::enable()
 {
 	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_ENABLED);
@@ -115,6 +140,17 @@ void fle_TrayMenuItem::enable()
 void fle_TrayMenuItem::disable()
 {
 	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_DISABLED | MF_GRAYED);
+}
+
+bool fle_TrayMenuItem::isEnabled()
+{
+	UINT result = GetMenuState(*getParentMenu(), (UINT)getMenu(), MF_BYCOMMAND);
+
+	if(result & MF_GRAYED)
+	{
+		return true;
+	}
+	return false;
 }
 
 HMENU * fle_TrayMenuItem::getParentMenu()
@@ -398,7 +434,7 @@ class fle_TrayWindow : public fle_BaseWindow
 		fle_TrayWindow(HINSTANCE*);
 		NOTIFYICONDATA* getNotifyIconDataStructure(void);
 		HINSTANCE* getInstanceReference(void);
-		void setTrayIcon(TCHAR*);
+		void setTrayIcon(char*);
 		void show(void);
 		void addMenu(fle_TrayMenuItem *);
 		void setStatusFunction(void (*target_function)(void));
@@ -455,8 +491,9 @@ HINSTANCE* fle_TrayWindow::getInstanceReference()
 	return p_hInstance;
 }
 
-void fle_TrayWindow::setTrayIcon(TCHAR * icon_path)
+void fle_TrayWindow::setTrayIcon(char * icon_path_string)
 {
+	TCHAR * icon_path = getTCHAR(icon_path_string);
 	fle_TrayWindow::getNotifyIconDataStructure()->hIcon = (HICON) LoadImage(NULL, icon_path, IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE | LR_SHARED); 
 }
 
@@ -523,16 +560,20 @@ void fle_Window::show()
 
 
 // RunSript
-bool runShellScript(TCHAR * script_name, TCHAR * script_parameters, TCHAR * script_path)
+bool runShellScript(char * script_name, char * script_parameters, char * script_path)
 {
+	TCHAR * t_script_name = getTCHAR(script_name);
+	TCHAR * t_script_parameters = getTCHAR(script_parameters);
+	TCHAR * t_script_path = getTCHAR(script_path);
+
 	SHELLEXECUTEINFO shellExecuteInfo;
 	shellExecuteInfo.cbSize = sizeof(SHELLEXECUTEINFO);
 	shellExecuteInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
 	shellExecuteInfo.hwnd = NULL;
 	shellExecuteInfo.lpVerb = L"open";
-	shellExecuteInfo.lpFile = script_name;
-	shellExecuteInfo.lpParameters = script_parameters;
-	shellExecuteInfo.lpDirectory = script_path;
+	shellExecuteInfo.lpFile = t_script_name;
+	shellExecuteInfo.lpParameters = t_script_parameters;
+	shellExecuteInfo.lpDirectory = t_script_path;
 	shellExecuteInfo.nShow = SW_SHOW;
 	shellExecuteInfo.hInstApp = NULL;
 	
@@ -544,9 +585,10 @@ bool runShellScript(TCHAR * script_name, TCHAR * script_parameters, TCHAR * scri
 	return false;
 }
 
-void printConsole(const TCHAR * message)
+void printConsole(char * message)
 {
-	OutputDebugString(message);
+	TCHAR * t_message = getTCHAR(message);
+	OutputDebugString(t_message);
 }
 
 #endif
