@@ -62,6 +62,7 @@ class fle_TrayMenuItem
 		bool isChecked(void);
 		void enable(void);
 		void disable(void);
+		void toogleEnabled(void);
 		bool isEnabled(void);
 		HMENU * getParentMenu(void);
 		void setParentMenu(HMENU*);
@@ -142,11 +143,23 @@ void fle_TrayMenuItem::disable()
 	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_DISABLED | MF_GRAYED);
 }
 
+void fle_TrayMenuItem::toogleEnabled()
+{
+	if(this->isEnabled())
+	{
+		this->disable();
+	} 
+	else
+	{
+		this->enable();
+	}
+}
+
 bool fle_TrayMenuItem::isEnabled()
 {
 	UINT result = GetMenuState(*getParentMenu(), (UINT)getMenu(), MF_BYCOMMAND);
 
-	if(result & MF_GRAYED)
+	if(!(result & (MF_DISABLED | MF_GRAYED)))
 	{
 		return true;
 	}
@@ -276,7 +289,9 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 		{
 			case WM_PAINT:
 				{
-			
+					PAINTSTRUCT ps;
+					BeginPaint(hwnd, &ps);
+					EndPaint(hwnd, &ps);
 				}
 				break;
 
@@ -331,6 +346,10 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 					return DefWindowProc(hwnd, msg, wParam, lParam);
 				}
 		}
+
+	//
+	InvalidateRect(hwnd, NULL, TRUE);
+	DrawMenuBar(hwnd);
 
 	return 0;
 };
@@ -589,6 +608,95 @@ void printConsole(char * message)
 {
 	TCHAR * t_message = getTCHAR(message);
 	OutputDebugString(t_message);
+}
+
+struct TDATA
+{
+	HANDLE * mutex;
+	DWORD time;
+	void (*target_function)(void);
+};
+
+DWORD WINAPI threadFunction( LPVOID lpParam )
+{ 
+	TDATA* t = (TDATA*) lpParam;
+    DWORD dwWaitResult;
+
+    while(1)
+    { 
+		Sleep(3000);
+		dwWaitResult = WaitForSingleObject(*(t->mutex), INFINITE);
+		
+		switch (dwWaitResult) 
+        {
+            case WAIT_OBJECT_0: 
+                __try {
+					
+					if(t->target_function != NULL)
+					{
+						t->target_function();						
+					}
+                } 
+
+                __finally {
+                    if (! ReleaseMutex(*(t->mutex))) 
+                    { 
+                        // Handle error.
+                    } 
+                } 
+                break; 
+
+            case WAIT_ABANDONED:
+				break;
+        }
+    }
+    return TRUE; 
+}
+
+void ThreadLoopHandleFunction(HANDLE * mutex, DWORD time_m, void (*target_function)(void)) 
+{
+	TDATA * data = new TDATA();
+	data->mutex = mutex;
+	data->time = time_m;
+	data->target_function = target_function;
+
+	DWORD ThreadID;
+	HANDLE aThread;
+	aThread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) threadFunction, data, 0, &ThreadID);
+	if( aThread == NULL )
+    {
+		//return 1;
+	}
+	//CloseHandle(aThread);
+}
+
+void handleMutex(HANDLE * mutex, DWORD time_m, void (*target_function)(void))
+{
+	DWORD dwWaitResult = WaitForSingleObject(*mutex, time_m);
+		
+	switch (dwWaitResult) 
+    {
+        // The thread got ownership of the mutex
+        case WAIT_OBJECT_0: 
+            __try { 
+                if(target_function != NULL)
+				{
+					target_function();
+				}
+            } 
+
+            __finally {
+                if (! ReleaseMutex(*mutex)) 
+                { 
+                    // Handle error.
+                } 
+            } 
+            break; 
+
+        case WAIT_ABANDONED: 
+			break;
+			// Error
+    }
 }
 
 #endif
