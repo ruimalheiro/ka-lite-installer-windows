@@ -1,9 +1,5 @@
 #include "fle_win32_framework.h"
 
-
-HANDLE ghMutex;
-static bool isrunning;
-
 // Declare global stuff that you need to use inside the functions.
 fle_TrayWindow * window;
 
@@ -62,50 +58,21 @@ void trayMenuAction3()
 
 void trayMenuAction4()
 {
-	//printConsole("I am exiting KA Lite.\n");
-	menu1->toogleEnabled();
-	//menu1->disable();
-}
-
-void doStuff()
-{
-	if(isrunning)
-	{
-		menu2->enable();
-	}
-	else
-	{
-		menu2->disable();
-	}
-}
-
-void statusFunction()
-{
-	// The code here runs on each frame of the window main loop.
-	// We can handle things like checking if the server is online and controlling the state of each component.
-	// Basically, the automated stuff.
-	handleMutex(&ghMutex, 1000, &doStuff);
+	printConsole("I am exiting KA Lite.\n");
 }
 
 void doStuffThread()
 {
-	isrunning = !isrunning;
+	// We can handle things like checking if the server is online and controlling the state of each component.
+	menu1->toogleEnabled();
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-	isrunning = false;
-	ghMutex = CreateMutex(NULL, FALSE, NULL);
-	if (ghMutex == NULL) 
-    {
-        return 1;
-    }
-	
-	ThreadLoopHandleFunction(&ghMutex, 3000, &doStuffThread);
+	startThread(NULL, TRUE, 3000, &doStuffThread);
 
 	window = new fle_TrayWindow(&hInstance);
 	window->setTrayIcon("images\\logo48.ico");
-	window->setStatusFunction(&statusFunction);
 
 	menu1 = new fle_TrayMenuItem("Start Server.", &trayMenuAction1);
 	menu2 = new fle_TrayMenuItem("Stop Server.", &trayMenuAction2);
@@ -127,7 +94,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	window->show();
 
-	CloseHandle(ghMutex);	
 	return 0;
 }
 

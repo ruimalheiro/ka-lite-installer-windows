@@ -48,6 +48,7 @@ class fle_TrayMenuItem
 		TCHAR * title;
 		void (*f_action)(void);
 		UINT menuType;
+		HWND* p_window;
 	public:
 		fle_TrayMenuItem(char*, void (*action_function)(void));
 		void action(void);
@@ -66,6 +67,8 @@ class fle_TrayMenuItem
 		bool isEnabled(void);
 		HMENU * getParentMenu(void);
 		void setParentMenu(HMENU*);
+		void setWindow(HWND*);
+		HWND* getWindow(void);
 };
 
 fle_TrayMenuItem::fle_TrayMenuItem(char * m_title, void (*action_function)(void))
@@ -136,11 +139,13 @@ bool fle_TrayMenuItem::isChecked()
 void fle_TrayMenuItem::enable()
 {
 	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_ENABLED);
+	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
 }
 
 void fle_TrayMenuItem::disable()
 {
 	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_DISABLED | MF_GRAYED);
+	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_FRAME|RDW_ALLCHILDREN|RDW_ERASE);
 }
 
 void fle_TrayMenuItem::toogleEnabled()
@@ -176,6 +181,15 @@ void fle_TrayMenuItem::setParentMenu(HMENU * parent)
 	this->parent_hMenu = parent;
 }
 
+void fle_TrayMenuItem::setWindow(HWND * window)
+{
+	this->p_window = window;
+}
+
+HWND* fle_TrayMenuItem::getWindow()
+{
+	return this->p_window;
+}
 
 
 
@@ -186,7 +200,7 @@ class fle_BaseWindow
 	private:
 		HINSTANCE * p_hInstance;
 		WNDCLASSEX * p_wc;
-		HWND hwnd;
+		static HWND hwnd;
 
 		static void (*main_loop_function)(void);
 		static HMENU hMenu;
@@ -196,7 +210,7 @@ class fle_BaseWindow
 		fle_BaseWindow(HINSTANCE*, int, int, TCHAR*, TCHAR*);
 		void show(void);
 		void test(void);
-		HWND& getWindowReference(void);
+		static HWND& getWindowReference(void);
 		HINSTANCE* getInstanceReference(void);
 		static void processTrayMenu(WPARAM, LPARAM, HWND*, HMENU*, fle_BaseWindow*);
 		static HMENU& getMainMenu(void);
@@ -249,7 +263,7 @@ fle_BaseWindow::fle_BaseWindow(HINSTANCE * hInstance, int WIDTH, int HEIGHT, TCH
 
 HWND& fle_BaseWindow::getWindowReference()
 {
-	return this->hwnd;
+	return fle_BaseWindow::hwnd;
 }
 
 HINSTANCE * fle_BaseWindow::getInstanceReference()
@@ -287,6 +301,21 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 
 	switch(msg)
 		{
+			/*case WM_INITDIALOG:
+				{
+					//SetTimer(hwnd, 500, 500, NULL);
+				}
+				break;
+
+			case WM_TIMER:
+				{
+					if(wParam == 500)
+					{
+						InvalidateRect(hwnd, NULL, FALSE);
+					}
+				}
+				break;
+
 			case WM_PAINT:
 				{
 					PAINTSTRUCT ps;
@@ -299,7 +328,7 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				{
 			
 				}
-				break;
+				break;*/
 
 			case WM_COMMAND:
 				{
@@ -324,10 +353,10 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				}
 				break;
 
-			case WM_NCHITTEST:
+			/*case WM_NCHITTEST:
 				{
 				}
-				break;
+				break;*/
 
 			case WM_CLOSE:
 				{
@@ -335,21 +364,17 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				}
 				break;
 
-			case WM_DESTROY:
+			/*case WM_DESTROY:
 				{
 
 				}
 				break;
-
+				*/
 			default:
 				{
 					return DefWindowProc(hwnd, msg, wParam, lParam);
 				}
 		}
-
-	//
-	InvalidateRect(hwnd, NULL, TRUE);
-	DrawMenuBar(hwnd);
 
 	return 0;
 };
@@ -398,7 +423,6 @@ void fle_BaseWindow::processTrayMenu(WPARAM wParam, LPARAM lParam, HWND * hwnd, 
 				(it->second)->action();
 			}
 		}
-
 	}		  
 };
 
@@ -411,6 +435,7 @@ void fle_BaseWindow::addTrayMenu(fle_TrayMenuItem * menu)
 {
 	if(menu != NULL && menu->getID() != NULL && menu->getTitle() != NULL)
 	{
+		menu->setWindow(&getWindowReference());
 		menu->setParentMenu(&getMainMenu());
 		AppendMenu(getMainMenu(), menu->getMenuType(), (UINT)menu->getMenu(), menu->getTitle());
 		tray_children_map.insert(std::pair<UINT, fle_TrayMenuItem*>((UINT)menu->getMenu(), menu));
@@ -428,6 +453,7 @@ void fle_BaseWindow::setMainLoopFunction(void (*target_function)(void))
 	fle_BaseWindow::main_loop_function = target_function;
 }
 
+HWND fle_BaseWindow::hwnd;
 HMENU fle_BaseWindow::hMenu;
 std::map<UINT, fle_TrayMenuItem*> fle_BaseWindow::tray_children_map;
 void (*fle_BaseWindow::main_loop_function)(void);
@@ -615,6 +641,7 @@ struct TDATA
 	HANDLE * mutex;
 	DWORD time;
 	void (*target_function)(void);
+	bool isloop;
 };
 
 DWORD WINAPI threadFunction( LPVOID lpParam )
@@ -622,41 +649,64 @@ DWORD WINAPI threadFunction( LPVOID lpParam )
 	TDATA* t = (TDATA*) lpParam;
     DWORD dwWaitResult;
 
-    while(1)
-    { 
-		Sleep(3000);
-		dwWaitResult = WaitForSingleObject(*(t->mutex), INFINITE);
+	if(t->isloop)
+	{
+		while(TRUE)
+		{ 
+			Sleep(t->time);
+
+			if((t->mutex) != NULL)
+			{
+				dwWaitResult = WaitForSingleObject(*(t->mutex), INFINITE);
 		
-		switch (dwWaitResult) 
-        {
-            case WAIT_OBJECT_0: 
-                __try {
+				switch (dwWaitResult) 
+				{
+					case WAIT_OBJECT_0: 
+						__try {
 					
-					if(t->target_function != NULL)
-					{
-						t->target_function();						
-					}
-                } 
+							if(t->target_function != NULL)
+							{
+								t->target_function();						
+							}
+						} 
 
-                __finally {
-                    if (! ReleaseMutex(*(t->mutex))) 
-                    { 
-                        // Handle error.
-                    } 
-                } 
-                break; 
+						__finally {
+							if (! ReleaseMutex(*(t->mutex))) 
+							{ 
+								// Handle error.
+							} 
+						} 
+						break; 
 
-            case WAIT_ABANDONED:
-				break;
-        }
-    }
+					case WAIT_ABANDONED:
+						break;
+				}
+			}
+			else
+			{
+				if(t->target_function != NULL)
+				{
+					t->target_function();						
+				}
+			}
+		}
+	}
+	else
+	{
+		if(t->target_function != NULL)
+		{
+			t->target_function();						
+		}
+	}
+
     return TRUE; 
 }
 
-void ThreadLoopHandleFunction(HANDLE * mutex, DWORD time_m, void (*target_function)(void)) 
+void startThread(HANDLE * mutex, bool loop, DWORD time_m, void (*target_function)(void)) 
 {
 	TDATA * data = new TDATA();
 	data->mutex = mutex;
+	data->isloop = loop;
 	data->time = time_m;
 	data->target_function = target_function;
 
