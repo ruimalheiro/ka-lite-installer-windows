@@ -823,4 +823,14 @@ int ask(char * title, char * message)
 	return FALSE;
 }
 
+int loadBrowser(char * url)
+{
+	TCHAR * t_url = getTCHAR(url);
+	if((int)ShellExecute(NULL, L"open", t_url, NULL, NULL, SW_MAXIMIZE) <= 36)
+	{
+		return FALSE;
+	}
+	return TRUE;
+}
+
 #endif
