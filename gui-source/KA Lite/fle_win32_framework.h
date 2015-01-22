@@ -653,13 +653,13 @@ bool runShellScript(char * script_name, char * script_parameters, char * script_
 
 	SHELLEXECUTEINFO shellExecuteInfo;
 	shellExecuteInfo.cbSize = sizeof(SHELLEXECUTEINFO);
-	shellExecuteInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+	shellExecuteInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;
 	shellExecuteInfo.hwnd = NULL;
 	shellExecuteInfo.lpVerb = L"open";
 	shellExecuteInfo.lpFile = t_script_name;
 	shellExecuteInfo.lpParameters = t_script_parameters;
 	shellExecuteInfo.lpDirectory = t_script_path;
-	shellExecuteInfo.nShow = SW_SHOW;
+	shellExecuteInfo.nShow = SW_HIDE;
 	shellExecuteInfo.hInstApp = NULL;
 	
 	if(ShellExecuteEx(&shellExecuteInfo))
