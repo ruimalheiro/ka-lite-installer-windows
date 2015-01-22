@@ -2,6 +2,7 @@
 *.slo
 *.lo
 *.o
+*.obj
 
 # Compiled Dynamic libraries
 *.so
@@ -11,6 +12,10 @@
 *.lai
 *.la
 *.a
+
+# User files
+*.user
+*.suo
 
 # Compiled executable
 KALiteSetup.exe

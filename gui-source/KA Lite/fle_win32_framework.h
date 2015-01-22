@@ -4,6 +4,10 @@
 #include <Windows.h>
 #include <stdio.h>
 #include <map>
+#include "Shlwapi.h"
+#include "wininet.h"
+
+#pragma comment(lib, "Wininet")
 
 using namespace std;
 
@@ -60,6 +64,7 @@ class fle_TrayMenuItem
 		UINT getMenuType(void);
 		void check(void);
 		void uncheck(void);
+		void toogleChecked(void);
 		bool isChecked(void);
 		void enable(void);
 		void disable(void);
@@ -123,6 +128,18 @@ void fle_TrayMenuItem::check()
 void fle_TrayMenuItem::uncheck()
 {
 	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_UNCHECKED);
+}
+
+void fle_TrayMenuItem::toogleChecked()
+{
+	if(this->isChecked())
+	{
+		this->uncheck();
+	}
+	else
+	{
+		this->check();
+	}
 }
 
 bool fle_TrayMenuItem::isChecked()
@@ -217,6 +234,7 @@ class fle_BaseWindow
 		static void addTrayMenu(fle_TrayMenuItem*);
 		static std::map<UINT, fle_TrayMenuItem*>& getTrayMap(void);
 		static void setMainLoopFunction(void (*main_loop_function)(void));
+		static void quit(void);
 
 };
 
@@ -315,7 +333,7 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 					}
 				}
 				break;
-
+				
 			case WM_PAINT:
 				{
 					PAINTSTRUCT ps;
@@ -328,11 +346,11 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 				{
 			
 				}
-				break;*/
-
+				break;
+				*/
 			case WM_COMMAND:
 				{
-					switch(LOWORD(wParam))
+					/*switch(LOWORD(wParam))
 						{
 							//case ID_MINIMIZE_BUTTON:
 							//case ID_OPEN_IN_BROWSER:
@@ -343,7 +361,7 @@ LRESULT CALLBACK fle_BaseWindow::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPA
 							//case ID_HELP_ABOUT:
 							//case ID_FILE_EXIT:
 							//case ID_STUFF_GO:
-						}
+						}*/
 				}
 				break;
 
@@ -453,6 +471,11 @@ void fle_BaseWindow::setMainLoopFunction(void (*target_function)(void))
 	fle_BaseWindow::main_loop_function = target_function;
 }
 
+void fle_BaseWindow::quit()
+{
+	PostQuitMessage(0);
+}
+
 HWND fle_BaseWindow::hwnd;
 HMENU fle_BaseWindow::hMenu;
 std::map<UINT, fle_TrayMenuItem*> fle_BaseWindow::tray_children_map;
@@ -483,6 +506,8 @@ class fle_TrayWindow : public fle_BaseWindow
 		void show(void);
 		void addMenu(fle_TrayMenuItem *);
 		void setStatusFunction(void (*target_function)(void));
+		void sendTrayMessage(char*, char*);
+		void quit(void);
 };
 
 fle_TrayWindow::fle_TrayWindow(HINSTANCE * hInstance) : fle_BaseWindow(hInstance, 0, 0, L"DEFAULT", L"DEFAULT")
@@ -550,6 +575,21 @@ void fle_TrayWindow::addMenu(fle_TrayMenuItem * menu)
 void fle_TrayWindow::setStatusFunction(void (*target_function)(void))
 {
 	fle_BaseWindow::setMainLoopFunction(target_function);
+}
+
+void fle_TrayWindow::sendTrayMessage(char * title, char * message)
+{
+	TCHAR * t_title = getTCHAR(title);
+	TCHAR * t_message = getTCHAR(message);
+	lstrcpy(fle_TrayWindow::getNotifyIconDataStructure()->szInfoTitle , t_title);
+	lstrcpy(fle_TrayWindow::getNotifyIconDataStructure()->szInfo, t_message);
+
+	Shell_NotifyIcon(NIM_MODIFY, fle_TrayWindow::getNotifyIconDataStructure());
+}
+
+void fle_TrayWindow::quit()
+{
+	fle_BaseWindow::quit();
 }
 
 void fle_TrayWindow::show()
@@ -747,6 +787,40 @@ void handleMutex(HANDLE * mutex, DWORD time_m, void (*target_function)(void))
 			break;
 			// Error
     }
+}
+
+bool isServerOnline(char * session_name, char * url)
+{
+	TCHAR * t_session_name = getTCHAR(session_name);
+	TCHAR * t_url = getTCHAR(url);
+
+	HINTERNET hSession = InternetOpen(t_session_name, 0, NULL, NULL, 0);
+	HINTERNET hOpenUrl = InternetOpenUrl(hSession, t_url, NULL, 0, INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_PRAGMA_NOCACHE, 1);
+
+	if( hOpenUrl == NULL){
+
+		InternetCloseHandle(hOpenUrl);
+		InternetCloseHandle(hSession);
+
+		return FALSE;
+	}
+
+	InternetCloseHandle(hOpenUrl);
+	InternetCloseHandle(hSession);
+
+	return TRUE;
+}
+
+int ask(char * title, char * message)
+{
+	TCHAR * t_title = getTCHAR(title);
+	TCHAR * t_message = getTCHAR(message);
+
+	if(MessageBox(NULL, t_message, t_title, MB_YESNO | MB_ICONQUESTION) == IDYES)
+	{
+		return TRUE;
+	}
+	return FALSE;
 }
 
 #endif
