@@ -111,11 +111,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	menu2->disable();
 
-	// Not in use
-	menu5->disable();
-	menu6->disable();
-	menu7->disable();
-
 	window->show();
 
 	return 0;

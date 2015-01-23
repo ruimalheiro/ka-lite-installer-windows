@@ -123,11 +123,13 @@ UINT fle_TrayMenuItem::getMenuType()
 void fle_TrayMenuItem::check()
 {
 	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_CHECKED);
+	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
 }
 
 void fle_TrayMenuItem::uncheck()
 {
 	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_UNCHECKED);
+	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
 }
 
 void fle_TrayMenuItem::toogleChecked()
