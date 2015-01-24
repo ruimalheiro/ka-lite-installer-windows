@@ -1,4 +1,5 @@
 #include "fle_win32_framework.h"
+#include "config.h"
 
 // Declare global stuff that you need to use inside the functions.
 fle_TrayWindow * window;
@@ -25,6 +26,7 @@ void startServerAction()
 	{
 		menu1->disable();
 		menu2->enable();
+		menu3->enable();
 		printConsole("The script was run successfully.\n");
 
 		needNotify = true;
@@ -40,8 +42,9 @@ void stopServerAction()
 	}
 	else
 	{
-		menu2->disable();
 		menu1->enable();
+		menu2->disable();
+		menu3->disable();
 		printConsole("The script was run successfully.\n");
 	}
 }
@@ -59,6 +62,80 @@ void exitKALiteAction()
 	if(ask("Exiting..." , "Really want to exit KA Lite?"))
 	{
 		window->quit();
+	}
+}
+
+void runUserLogsInAction()
+{
+	if(menu5->isChecked())
+	{
+		if(!runShellScript("guitools.vbs", "1", NULL))
+		{
+			// Handle error.
+			printConsole("Failed to remove startup schortcut.\n");
+		}
+		else
+		{
+			menu5->uncheck();
+			setConfigurationValue("RUN_AT_LOGIN", "FALSE");
+		}
+	}
+	else
+	{
+		if(!runShellScript("guitools.vbs", "0", NULL))
+		{
+			// Handle error.
+			printConsole("Failed to add startup schortcut.\n");
+		}
+		else
+		{
+			menu5->check();
+			setConfigurationValue("RUN_AT_LOGIN", "TRUE");
+		}
+	}
+}
+
+void runAtStartupAction()
+{
+	if(menu6->isChecked())
+	{
+		if(!runShellScript("guitools.vbs", "5", NULL))
+		{
+			// Handle error.
+			printConsole("Failed to remove task to run at startup.\n");
+		}
+		else
+		{
+			menu6->uncheck();
+			setConfigurationValue("RUN_AT_STARTUP", "FALSE");
+		}
+	}
+	else
+	{
+		if(!runShellScript("guitools.vbs", "4", NULL))
+		{
+			// Handle error.
+			printConsole("Failed to add task to run at startup.\n");
+		}
+		else
+		{
+			menu6->check();
+			setConfigurationValue("RUN_AT_STARTUP", "TRUE");
+		}
+	}
+}
+
+void autoStartServerAction()
+{
+	if(menu7->isChecked())
+	{
+		menu7->uncheck();
+		setConfigurationValue("AUTO_START", "FALSE");
+	}
+	else
+	{
+		menu7->check();
+		setConfigurationValue("AUTO_START", "TRUE");
 	}
 }
 
@@ -93,9 +170,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	menu2 = new fle_TrayMenuItem("Stop Server.", &stopServerAction);
 	menu3 = new fle_TrayMenuItem("Load in browser.", &loadBrowserAction);
 	menu4 = new fle_TrayMenuItem("Options", NULL);
-	menu5 = new fle_TrayMenuItem("Run KA Lite when the user logs in.", NULL);
-	menu6 = new fle_TrayMenuItem("Run KA Lite at system startup.", NULL);
-	menu7 = new fle_TrayMenuItem("Auto-start server when KA Lite is run.", NULL);
+	menu5 = new fle_TrayMenuItem("Run KA Lite when the user logs in.", &runUserLogsInAction);
+	menu6 = new fle_TrayMenuItem("Run KA Lite at system startup.", &runAtStartupAction);
+	menu7 = new fle_TrayMenuItem("Auto-start server when KA Lite is run.", &autoStartServerAction);
 	menu8 = new fle_TrayMenuItem("Exit KA Lite.", &exitKALiteAction);
 
 	menu4->setSubMenu();
@@ -110,6 +187,22 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	window->addMenu(menu8);
 
 	menu2->disable();
+	menu3->disable();
+
+	// Load configurations.
+	if(isSetConfigurationValueTrue("RUN_AT_LOGIN"))
+	{
+		menu5->check();
+	}
+	if(isSetConfigurationValueTrue("RUN_AT_STARTUP"))
+	{
+		menu6->check();
+	}
+	if(isSetConfigurationValueTrue("AUTO_START"))
+	{
+		menu7->check();
+		startServerAction();
+	}
 
 	window->show();
 

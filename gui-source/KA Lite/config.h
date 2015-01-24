@@ -349,24 +349,32 @@ void formatResultBuffer(char * configurationBuffer, char * resultConfigurationBu
 
 
 /*
-*	General read key from configuration file.
+*	Read key from configuration file.
 */
-int getConfigurationValue(char * targetKey, char * resultValue, int resultValueBufferSize)
+int isSetConfigurationValueTrue(char * targetKey)
 {
 	char configurationFileBuffer[FILE_BUFFER_SIZE];
+
+	const int resultValueBufferSize = 10; 
+	char resultValue[resultValueBufferSize];
+
 	if(readConfigurationFileBuffer(configurationFileBuffer) == 1) return 1;	
 
 	if(extractValue(configurationFileBuffer, targetKey, resultValue, resultValueBufferSize) == 1)
 	{
-		resultValue = "FALSE";
 		if(setConfigurationValue(targetKey, "FALSE") == 1)
 		{
 			MessageBox(NULL, L"Failed to set the configuration option", L"Error", MB_OK | MB_ICONERROR);
 		}
-		return 1;
+		return FALSE;
 	}
 
-	return 0;
+	if(compareKeys(resultValue, "TRUE"))
+	{
+		return TRUE;
+	}
+
+	return FALSE;
 }
 
 
@@ -390,5 +398,6 @@ int setConfigurationValue(const char * targetKey, const char * value)
 
 	return 0;
 }
+
 
 #endif

@@ -79,6 +79,7 @@ class fle_TrayMenuItem
 fle_TrayMenuItem::fle_TrayMenuItem(char * m_title, void (*action_function)(void))
 {
 	hMenu = CreatePopupMenu();
+	p_window = NULL;
 	id = getAvailableID();
 	title = getTCHAR(m_title);
 	f_action = action_function;
@@ -123,13 +124,19 @@ UINT fle_TrayMenuItem::getMenuType()
 void fle_TrayMenuItem::check()
 {
 	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_CHECKED);
-	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
+	if(getWindow() != NULL)
+	{
+		RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
+	}
 }
 
 void fle_TrayMenuItem::uncheck()
 {
 	CheckMenuItem(*getParentMenu(), (UINT)getMenu(), MF_UNCHECKED);
-	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
+	if(getWindow() != NULL)
+	{
+		RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
+	}
 }
 
 void fle_TrayMenuItem::toogleChecked()
@@ -158,13 +165,19 @@ bool fle_TrayMenuItem::isChecked()
 void fle_TrayMenuItem::enable()
 {
 	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_ENABLED);
-	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
+	if(getWindow() != NULL)
+	{
+		RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
+	}
 }
 
 void fle_TrayMenuItem::disable()
 {
 	EnableMenuItem(*getParentMenu(), (UINT)getMenu(), MF_DISABLED | MF_GRAYED);
-	RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_FRAME|RDW_ALLCHILDREN|RDW_ERASE);
+	if(getWindow() != NULL)
+	{
+		RedrawWindow(*getWindow(), NULL, NULL, RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_FRAME|RDW_ERASE);
+	}
 }
 
 void fle_TrayMenuItem::toogleEnabled()
@@ -488,6 +501,7 @@ void (*fle_BaseWindow::main_loop_function)(void);
 void fle_TrayMenuItem::addSubMenu(fle_TrayMenuItem * menu)
 {
 	menu->setParentMenu(&hMenu);
+	menu->setWindow(getWindow());
 	AppendMenu(hMenu, menu->getMenuType(), (UINT)menu->getMenu(), menu->getTitle());
 	fle_BaseWindow::getTrayMap().insert(std::pair<UINT, fle_TrayMenuItem*>((UINT)menu->getMenu(), menu));
 }
