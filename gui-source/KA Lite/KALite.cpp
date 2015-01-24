@@ -14,6 +14,7 @@ fle_TrayMenuItem * menu7;
 fle_TrayMenuItem * menu8;
 
 bool needNotify = false;
+bool isServerStarting = false;
 
 void startServerAction()
 {
@@ -25,11 +26,12 @@ void startServerAction()
 	else
 	{
 		menu1->disable();
-		menu2->enable();
-		menu3->enable();
 		printConsole("The script was run successfully.\n");
 
 		needNotify = true;
+		isServerStarting = true;
+
+		window->sendTrayMessage("KA Lite", "The server is starting... please wait");
 	}
 }
 
@@ -61,6 +63,7 @@ void exitKALiteAction()
 {
 	if(ask("Exiting..." , "Really want to exit KA Lite?"))
 	{
+		stopServerAction();
 		window->quit();
 	}
 }
@@ -146,16 +149,24 @@ void checkServerThread()
 	{
 		menu1->disable();
 		menu2->enable();
+		menu3->enable();
+
 		if(needNotify)
 		{
 			window->sendTrayMessage("KA Lite is running", "The server will be accessible locally at: http://127.0.0.1:8008/ or you can select \"Load in browser.\"");
 			needNotify = false;
 		}
+
+		isServerStarting = false;
 	}
 	else
 	{
-		menu1->enable();
-		menu2->disable();
+		if(!isServerStarting)
+		{
+			menu1->enable();
+			menu2->disable();
+			menu3->disable();
+		}
 	}
 }
 
