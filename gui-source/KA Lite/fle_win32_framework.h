@@ -605,6 +605,7 @@ void fle_TrayWindow::sendTrayMessage(char * title, char * message)
 
 void fle_TrayWindow::quit()
 {
+	Shell_NotifyIcon(NIM_DELETE, fle_TrayWindow::getNotifyIconDataStructure());
 	fle_BaseWindow::quit();
 }
 
