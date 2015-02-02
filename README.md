@@ -2,13 +2,11 @@ KA Lite Installer for Windows
 ==========
 
 This project provides a smoother way to install and run KA Lite in a Windows Machine.
-Also see: [compiled bundle and video overview](http://kalitewiki.learningequality.org/installation/windows-installation).
 
 ---
 #### This project was built using the following software:
-* Inno Setup 5.5.3
-* Inno Script Studio 1.0.0.24
-* Microsoft Visual Studio Express 2012
+* Inno Setup 5.5.3 [Download] (http://files.jrsoftware.org/is/5/)
+* Microsoft Visual Studio Express 2012 [Download] (https://www.microsoft.com/en-us/download/details.aspx?id=34673)
 * Git (note: install with the option to place the `git` executable in the path, so it can be run within `cmd`)
 
 ---
