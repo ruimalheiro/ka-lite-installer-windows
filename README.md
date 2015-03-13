@@ -21,12 +21,13 @@ This project provides a smoother way to install and run KA Lite in a Windows Mac
 * Select Build Solution.
 
 ---
-#### Instructions to build "KALiteSetup.exe":
-* Clone this repository;
-* Open `cmd` -- the Windows command prompt;
-* Run `git submodule update --init`
-* Run `make.vbs` and wait until the file is built;
-* The output file named "KALiteSetup.exe" will appear within this project folder.
+#### Instructions to build "KALiteSetup.exe" in Windows:
+The build process doesn't work reliably in Windows. Build on linux using wine instead.
+* ~~Clone this repository;~~
+* ~~Open `cmd` -- the Windows command prompt;~~
+* ~~Run `git submodule update --init`~~
+* ~~Run `make.vbs` and wait until the file is built;~~
+* ~~The output file named "KALiteSetup.exe" will appear within this project folder.~~
 
 ---
 ##### To clone this repository, run the following line:
@@ -34,5 +35,9 @@ This project provides a smoother way to install and run KA Lite in a Windows Mac
 ###### (the `--recursive` is required due to the `ka-lite` submodule)
 
 ---
-##### If you wish to build it using Wine, run the following line:
-    wine inno-compiler/ISCC.exe installer-source/KaliteSetupScript.iss
+##### Instructions to build "KALiteSetup.exe" in Linux:
+First, install `wine`. Then in the base directory run the following commands:
+```bash
+> echo "0.13.0" > installer-source/version.temp
+> wine inno-compiler/ISCC.exe installer-source/KaliteSetupScript.iss
+```
