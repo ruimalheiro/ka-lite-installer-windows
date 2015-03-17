@@ -4,6 +4,12 @@ Dim value : value = WScript.Arguments(0)
 Set oShell = CreateObject("WScript.Shell")
 sPath = oShell.SpecialFolders("Startup")
 
+' Detect the version of Windows.
+Set SystemSet = GetObject("winmgmts:").InstancesOf("Win32_OperatingSystem") 
+for each System in SystemSet
+    WinMajorVersion = Left(System.Version, 1)
+next
+
 'Option 0 is to create the startup link at the windows startup folder.
 If value = 0 Then
     
@@ -44,12 +50,26 @@ ElseIf value = 3 Then
 'Option 4 will add the system start task.
 ElseIf value = 4 Then  
     Set objShell = CreateObject("Shell.Application")
-    objShell.ShellExecute "cmd.exe", "/c """ & oShell.CurrentDirectory & "\ka-lite\scripts\add_systemstart_task.bat""", "", "runas", 1
+    If WinMajorVersion >= 6
+        ' Windows Vista or greater
+        runas = "runas"
+    Else
+        ' Windows XP or lower
+        runas = ""
+    End If
+    objShell.ShellExecute "cmd.exe", "/c """ & oShell.CurrentDirectory & "\ka-lite\scripts\add_systemstart_task.bat""", "", runas, 1
 
 'Option 5 will remove the system start task.    
 ElseIf value = 5 Then
     Set objShell = CreateObject("Shell.Application")
-    objShell.ShellExecute "cmd.exe", "/c """ & oShell.CurrentDirectory & "\ka-lite\scripts\remove_systemstart_task.bat""", "", "runas", 1
+    If WinMajorVersion >= 6
+        ' Windows Vista or greater
+        runas = "runas"
+    Else
+        ' Windows XP or lower
+        runas = ""
+    End If
+    objShell.ShellExecute "cmd.exe", "/c """ & oShell.CurrentDirectory & "\ka-lite\scripts\remove_systemstart_task.bat""", "", runas, 1
     
 End If
 
