@@ -50,7 +50,7 @@ ElseIf value = 3 Then
 'Option 4 will add the system start task.
 ElseIf value = 4 Then  
     Set objShell = CreateObject("Shell.Application")
-    If WinMajorVersion >= 6
+    If WinMajorVersion >= 6 Then
         ' Windows Vista or greater
         runas = "runas"
     Else
@@ -62,7 +62,7 @@ ElseIf value = 4 Then
 'Option 5 will remove the system start task.    
 ElseIf value = 5 Then
     Set objShell = CreateObject("Shell.Application")
-    If WinMajorVersion >= 6
+    If WinMajorVersion >= 6 Then
         ' Windows Vista or greater
         runas = "runas"
     Else
